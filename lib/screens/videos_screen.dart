@@ -367,7 +367,7 @@ class _VideosScreenState extends State<VideosScreen> {
       child: Center(
         child: Icon(
           isVideo ? CupertinoIcons.video_camera_solid : CupertinoIcons.music_note_2,
-          color: Colors.white.withOpacity(0.8),
+          color: Colors.white.withValues(alpha: 0.8),
           size: 32,
         ),
       ),

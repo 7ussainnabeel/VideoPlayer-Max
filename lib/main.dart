@@ -44,6 +44,8 @@ class MyApp extends StatelessWidget {
           elevation: 0,
         ),
         sliderTheme: SliderThemeData(
+          activeTrackColor: AppStyles.primaryRed,
+          thumbColor: AppStyles.primaryRed,
           overlayColor: AppStyles.primaryRed.withValues(alpha: 0.12),
           trackHeight: 3.0,
         ),

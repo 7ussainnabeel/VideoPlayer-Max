@@ -513,7 +513,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: AppStyles.primaryRed.withOpacity(0.3),
+                    color: AppStyles.primaryRed.withValues(alpha: 0.3),
                     blurRadius: 30,
                     spreadRadius: 5,
                   ),

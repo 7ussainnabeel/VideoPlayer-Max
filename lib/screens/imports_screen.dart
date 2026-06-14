@@ -62,6 +62,7 @@ class _ImportsScreenState extends State<ImportsScreen> {
               for (var item in items) {
                 await lib.deleteMediaItem(item.id);
               }
+              if (!mounted) return;
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text("Library cleared successfully")),
@@ -77,6 +78,7 @@ class _ImportsScreenState extends State<ImportsScreen> {
   Future<void> _importFromCameraRoll() async {
     try {
       final XFile? video = await _picker.pickVideo(source: ImageSource.gallery);
+      if (!mounted) return;
       if (video != null) {
         final libManager = Provider.of<MediaLibraryManager>(context, listen: false);
         final item = await libManager.addMediaItem(
@@ -100,6 +102,7 @@ class _ImportsScreenState extends State<ImportsScreen> {
         type: FileType.custom,
         allowedExtensions: ['mp4', 'mp3', 'm4a', 'wav', 'mov', 'avi'],
       );
+      if (!mounted) return;
 
       if (result != null && result.files.single.path != null) {
         final path = result.files.single.path!;
@@ -240,6 +243,8 @@ class _ImportsScreenState extends State<ImportsScreen> {
         });
       },
     );
+
+    if (!mounted) return;
 
     setState(() {
       _isDownloading = false;
