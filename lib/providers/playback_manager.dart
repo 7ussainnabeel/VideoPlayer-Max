@@ -27,6 +27,7 @@ class PlaybackManager with ChangeNotifier {
 
   // Status
   bool _isPlaying = false;
+  double _volume = 1.0;
 
   // Getters
   List<MediaItem> get playlist => _playlist;
@@ -41,6 +42,7 @@ class PlaybackManager with ChangeNotifier {
   Duration get position => _position;
   Duration get duration => _duration;
   bool get isPlaying => _isPlaying;
+  double get volume => _volume;
 
   // Set Playlist and Play Item
   Future<void> setPlaylist(List<MediaItem> items, int startIndex) async {
@@ -104,6 +106,7 @@ class PlaybackManager with ChangeNotifier {
         _videoController = VideoPlayerController.file(File(item.path));
         
         await _videoController!.initialize();
+        await _videoController!.setVolume(_volume);
         _duration = _videoController!.value.duration;
         await _videoController!.play();
 
@@ -113,6 +116,7 @@ class PlaybackManager with ChangeNotifier {
       } else {
         _isVideoActive = false;
         _audioPlayer = AudioPlayer();
+        await _audioPlayer!.setVolume(_volume);
         final durationRes = await _audioPlayer!.setFilePath(item.path);
         _duration = durationRes ?? item.duration;
         
@@ -326,6 +330,34 @@ class PlaybackManager with ChangeNotifier {
     }
 
     _isVideoActive = false;
+  }
+
+  Future<void> setVolume(double value) async {
+    _volume = value.clamp(0.0, 1.0);
+    try {
+      if (_isVideoActive && _videoController != null) {
+        await _videoController!.setVolume(_volume);
+      } else if (!_isVideoActive && _audioPlayer != null) {
+        await _audioPlayer!.setVolume(_volume);
+      }
+    } catch (e) {
+      debugPrint("Error setting volume: $e");
+    }
+    notifyListeners();
+  }
+
+  void reorderQueue(int oldIndex, int newIndex) {
+    if (oldIndex < newIndex) {
+      newIndex -= 1;
+    }
+    final playingItem = currentItem;
+    final item = _playlist.removeAt(oldIndex);
+    _playlist.insert(newIndex, item);
+    if (playingItem != null) {
+      _currentIndex = _playlist.indexWhere((element) => element.id == playingItem.id);
+    }
+    _generateShuffleIndices();
+    notifyListeners();
   }
 
   @override

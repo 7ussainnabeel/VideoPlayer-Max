@@ -7,6 +7,7 @@ import '../models/media_item.dart';
 import '../providers/media_library_manager.dart';
 import '../providers/playback_manager.dart';
 import 'player_screen.dart';
+import '../widgets/video_preview_widget.dart';
 
 class VideosScreen extends StatefulWidget {
   const VideosScreen({super.key});
@@ -264,12 +265,14 @@ class _VideosScreenState extends State<VideosScreen> {
                                     ),
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(4),
-                                      child: item.thumbnailPath != null
-                                          ? Image.file(
-                                              File(item.thumbnailPath!),
-                                              fit: BoxFit.cover,
-                                            )
-                                          : _buildThumbnailPlaceholder(item),
+                                      child: item.isVideo
+                                          ? VideoPreviewWidget(videoPath: item.path)
+                                          : (item.thumbnailPath != null
+                                              ? Image.file(
+                                                  File(item.thumbnailPath!),
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : _buildThumbnailPlaceholder(item)),
                                     ),
                                   ),
                                   

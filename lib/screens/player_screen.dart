@@ -67,12 +67,16 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   ),
                   const Divider(color: Colors.grey),
                   Expanded(
-                    child: ListView.builder(
+                    child: ReorderableListView.builder(
                       itemCount: pm.playlist.length,
+                      onReorder: (oldIndex, newIndex) {
+                        pm.reorderQueue(oldIndex, newIndex);
+                      },
                       itemBuilder: (context, index) {
                         final item = pm.playlist[index];
                         final isPlaying = pm.currentIndex == index;
                         return ListTile(
+                          key: Key('${item.id}_queue'),
                           leading: Icon(
                             item.isVideo ? CupertinoIcons.video_camera : CupertinoIcons.music_note,
                             color: isPlaying ? AppStyles.primaryRed : Colors.white60,
@@ -90,9 +94,15 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             _formatDuration(item.duration),
                             style: const TextStyle(color: Colors.white38),
                           ),
-                          trailing: isPlaying
-                              ? const Icon(Icons.volume_up, color: AppStyles.primaryRed)
-                              : null,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isPlaying)
+                                const Icon(Icons.volume_up, color: AppStyles.primaryRed),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.drag_handle, color: Colors.white30),
+                            ],
+                          ),
                           onTap: () {
                             pm.setPlaylist(pm.playlist, index);
                           },
@@ -353,6 +363,54 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ],
               ),
             ),
+
+
+            // Volume Controller Row
+            if (!_isPlayerLocked)
+              Container(
+                color: AppStyles.bottomNavBg,
+                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        if (playbackManager.volume > 0.0) {
+                          playbackManager.setVolume(0.0);
+                        } else {
+                          playbackManager.setVolume(1.0);
+                        }
+                      },
+                      child: Icon(
+                        playbackManager.volume == 0.0
+                            ? CupertinoIcons.volume_mute
+                            : (playbackManager.volume < 0.5
+                                ? CupertinoIcons.volume_down
+                                : CupertinoIcons.volume_up),
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    Expanded(
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          activeTrackColor: AppStyles.primaryRed,
+                          inactiveTrackColor: Colors.grey.shade700,
+                          thumbColor: Colors.white,
+                          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
+                          overlayShape: const RoundSliderOverlayShape(overlayRadius: 10.0),
+                          trackHeight: 3.0,
+                        ),
+                        child: Slider(
+                          value: playbackManager.volume,
+                          onChanged: (val) {
+                            playbackManager.setVolume(val);
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
             // Bottom Control Bar
             Container(

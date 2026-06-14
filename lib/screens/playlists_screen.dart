@@ -6,6 +6,7 @@ import '../models/playlist.dart';
 import '../providers/media_library_manager.dart';
 import '../providers/playback_manager.dart';
 import 'player_screen.dart';
+import '../widgets/video_preview_widget.dart';
 
 class PlaylistsScreen extends StatefulWidget {
   const PlaylistsScreen({super.key});
@@ -258,13 +259,11 @@ class PlaylistDetailScreen extends StatelessWidget {
                 ],
               ),
             )
-          : ListView.separated(
+          : ReorderableListView.builder(
               itemCount: playlist.items.length,
-              separatorBuilder: (context, index) => const Divider(
-                height: 0.5,
-                indent: 90,
-                color: AppStyles.dividerColor,
-              ),
+              onReorder: (oldIndex, newIndex) {
+                libraryManager.reorderPlaylist(playlistId, oldIndex, newIndex);
+              },
               itemBuilder: (context, index) {
                 final item = playlist.items[index];
                 return Dismissible(
@@ -279,76 +278,88 @@ class PlaylistDetailScreen extends StatelessWidget {
                   onDismissed: (direction) {
                     libraryManager.removeMediaFromPlaylist(playlistId, item.id);
                   },
-                  child: Container(
-                    color: Colors.white,
-                    height: 80,
-                    child: Row(
-                      children: [
-                        // Custom Thumbnail
-                        Container(
-                          width: 75,
-                          height: 75,
-                          margin: const EdgeInsets.all(2.5),
-                          decoration: BoxDecoration(
-                            color: Colors.black,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: item.isVideo
-                                ? const ContainerVideoPlaceholder()
-                                : const ContainerAudioPlaceholder(),
-                          ),
-                        ),
-                        
-                        // Details
-                        Expanded(
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.translucent,
-                            onTap: () {
-                              playbackManager.setPlaylist(playlist.items, index);
-                              Navigator.push(
-                                context,
-                                CupertinoPageRoute(
-                                  builder: (context) => const PlayerScreen(),
-                                ),
-                              );
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    item.title,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: AppStyles.mediaTitleStyle,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _formatDuration(item.duration),
-                                    style: AppStyles.mediaDurationStyle,
-                                  ),
-                                ],
+                  child: Column(
+                    key: Key('${item.id}_col'),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        color: Colors.white,
+                        height: 80,
+                        child: Row(
+                          children: [
+                            // Custom Thumbnail
+                            Container(
+                              width: 75,
+                              height: 75,
+                              margin: const EdgeInsets.all(2.5),
+                              decoration: BoxDecoration(
+                                color: Colors.black,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: item.isVideo
+                                    ? VideoPreviewWidget(videoPath: item.path)
+                                    : const ContainerAudioPlaceholder(),
                               ),
                             ),
-                          ),
-                        ),
-                        
-                        // Playing indicator
-                        if (playbackManager.currentItem?.id == item.id)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 16.0),
-                            child: Icon(
-                              Icons.play_arrow,
-                              color: AppStyles.primaryRed,
-                              size: 20,
+                            
+                            // Details
+                            Expanded(
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.translucent,
+                                onTap: () {
+                                  playbackManager.setPlaylist(playlist.items, index);
+                                  Navigator.push(
+                                    context,
+                                    CupertinoPageRoute(
+                                      builder: (context) => const PlayerScreen(),
+                                    ),
+                                  );
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        item.title,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppStyles.mediaTitleStyle,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _formatDuration(item.duration),
+                                        style: AppStyles.mediaDurationStyle,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                      ],
-                    ),
+                            
+                            // Playing indicator
+                            if (playbackManager.currentItem?.id == item.id)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 16.0),
+                                child: Icon(
+                                  Icons.play_arrow,
+                                  color: AppStyles.primaryRed,
+                                  size: 20,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (index < playlist.items.length - 1)
+                        const Divider(
+                          height: 0.5,
+                          indent: 90,
+                          color: AppStyles.dividerColor,
+                        ),
+                    ],
                   ),
                 );
               },

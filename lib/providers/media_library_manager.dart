@@ -250,4 +250,23 @@ class MediaLibraryManager with ChangeNotifier {
     await _saveLibrary();
     notifyListeners();
   }
+
+  // Reorder Item inside Playlist
+  Future<void> reorderPlaylist(String playlistId, int oldIndex, int newIndex) async {
+    final index = _playlists.indexWhere((element) => element.id == playlistId);
+    if (index != -1) {
+      final playlist = _playlists[index];
+      final updatedItems = List<MediaItem>.from(playlist.items);
+      
+      if (oldIndex < newIndex) {
+        newIndex -= 1;
+      }
+      final item = updatedItems.removeAt(oldIndex);
+      updatedItems.insert(newIndex, item);
+      
+      _playlists[index] = playlist.copyWith(items: updatedItems);
+      await _saveLibrary();
+      notifyListeners();
+    }
+  }
 }
