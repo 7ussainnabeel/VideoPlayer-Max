@@ -353,6 +353,7 @@ class _VideosScreenState extends State<VideosScreen> {
                             );
                           },
                         ),
+                    ),
             ),
           ],
         ),
