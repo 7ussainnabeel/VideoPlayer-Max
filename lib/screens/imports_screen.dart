@@ -57,14 +57,15 @@ class _ImportsScreenState extends State<ImportsScreen> {
             child: const Text("Clear"),
             onPressed: () async {
               final lib = Provider.of<MediaLibraryManager>(context, listen: false);
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
               // Delete all items sequentially
               final items = List<MediaItem>.from(lib.mediaItems);
               for (var item in items) {
                 await lib.deleteMediaItem(item.id);
               }
-              if (!mounted) return;
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
+              navigator.pop();
+              messenger.showSnackBar(
                 const SnackBar(content: Text("Library cleared successfully")),
               );
             },
@@ -151,7 +152,7 @@ class _ImportsScreenState extends State<ImportsScreen> {
                   const SizedBox(height: 8),
                   CupertinoTextField(
                     controller: nameController,
-                    placeholder: "Save file as (e.g. MyVideo)",
+                    placeholder: "Save file as (Optional)",
                     style: const TextStyle(fontSize: 14),
                   ),
                   const SizedBox(height: 8),
@@ -212,10 +213,14 @@ class _ImportsScreenState extends State<ImportsScreen> {
                 onPressed: () {
                   final url = urlController.text.trim();
                   final filename = nameController.text.trim();
-                  if (url.isEmpty || filename.isEmpty) return;
+                  if (url.isEmpty) return;
 
                   Navigator.pop(context);
-                  _startDownload(url, filename, selectedType);
+                  _startDownload(
+                    url,
+                    filename.isEmpty ? null : filename,
+                    selectedType,
+                  );
                 },
               ),
             ],
@@ -225,8 +230,8 @@ class _ImportsScreenState extends State<ImportsScreen> {
     );
   }
 
-  // Trigger Dio downloader
-  Future<void> _startDownload(String url, String fileName, MediaType type) async {
+  // Trigger downloader
+  Future<void> _startDownload(String url, String? fileName, MediaType type) async {
     setState(() {
       _isDownloading = true;
       _downloadProgress = 0.0;

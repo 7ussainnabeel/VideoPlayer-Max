@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import 'package:dio/dio.dart';
 import 'package:video_player/video_player.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yt_explode;
 import '../models/media_item.dart';
 import '../models/playlist.dart';
 
@@ -120,10 +121,16 @@ class MediaLibraryManager with ChangeNotifier {
     }
   }
 
-  // Download File from URL
+  bool _isYouTubeUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return false;
+    return uri.host.contains('youtube.com') || uri.host.contains('youtu.be');
+  }
+
+  // Download File from URL (supports YouTube URLs natively)
   Future<MediaItem?> downloadMedia({
     required String url,
-    required String fileName,
+    String? fileName,
     required MediaType type,
     Function(double)? onProgress,
   }) async {
@@ -132,41 +139,119 @@ class MediaLibraryManager with ChangeNotifier {
 
     try {
       final appDir = await getApplicationDocumentsDirectory();
-      final extension = type == MediaType.video ? '.mp4' : '.mp3';
-      
-      // Ensure file name has extension
-      String finalFileName = fileName;
-      if (!fileName.endsWith(extension)) {
-        finalFileName = '$fileName$extension';
-      }
 
-      final tempPath = '${appDir.path}/temp_${_uuid.v4()}$extension';
-      
-      final dio = Dio();
-      await dio.download(
-        url,
-        tempPath,
-        onReceiveProgress: (received, total) {
-          if (total != -1 && onProgress != null) {
-            onProgress(received / total);
+      if (_isYouTubeUrl(url)) {
+        final yt = yt_explode.YoutubeExplode();
+        try {
+          final video = await yt.videos.get(url);
+          final manifest = await yt.videos.streamsClient.getManifest(video.id);
+
+          yt_explode.StreamInfo streamInfo;
+          String extension;
+          if (type == MediaType.video) {
+            if (manifest.muxed.isEmpty) {
+              throw Exception("No playable video streams found.");
+            }
+            streamInfo = manifest.muxed.withHighestBitrate();
+            extension = '.mp4';
+          } else {
+            if (manifest.audioOnly.isEmpty) {
+              throw Exception("No playable audio streams found.");
+            }
+            streamInfo = manifest.audioOnly.withHighestBitrate();
+            extension = '.m4a'; // M4A container for YouTube high bitrate audio
           }
-        },
-      );
 
-      // Now add using our standard path copy and duration extraction
-      final newItem = await addMediaItem(
-        sourcePath: tempPath,
-        originalName: finalFileName,
-        type: type,
-      );
+          // Determine filename from custom parameter or YouTube metadata
+          String finalFileName = fileName ?? '';
+          if (finalFileName.isEmpty) {
+            finalFileName = video.title;
+          }
+          // Sanitize filename to remove characters invalid for OS file systems
+          finalFileName = finalFileName.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
+          if (!finalFileName.endsWith(extension)) {
+            finalFileName = '$finalFileName$extension';
+          }
 
-      // Delete the temp downloaded file
-      final tempFile = File(tempPath);
-      if (await tempFile.exists()) {
-        await tempFile.delete();
+          final tempPath = '${appDir.path}/temp_${_uuid.v4()}$extension';
+          final tempFile = File(tempPath);
+          final fileStream = tempFile.openWrite();
+
+          final stream = yt.videos.streamsClient.get(streamInfo);
+          final totalBytes = streamInfo.size.totalBytes;
+          var downloadedBytes = 0;
+
+          await for (final chunk in stream) {
+            downloadedBytes += chunk.length;
+            fileStream.add(chunk);
+            if (totalBytes > 0 && onProgress != null) {
+              onProgress(downloadedBytes / totalBytes);
+            }
+          }
+
+          await fileStream.flush();
+          await fileStream.close();
+
+          final newItem = await addMediaItem(
+            sourcePath: tempPath,
+            originalName: finalFileName,
+            type: type,
+          );
+
+          if (await tempFile.exists()) {
+            await tempFile.delete();
+          }
+
+          return newItem;
+        } finally {
+          yt.close();
+        }
+      } else {
+        final extension = type == MediaType.video ? '.mp4' : '.mp3';
+        
+        // Ensure file name has extension
+        String finalFileName = fileName ?? '';
+        if (finalFileName.isEmpty) {
+          finalFileName = url.split('/').last;
+          if (finalFileName.contains('?')) {
+            finalFileName = finalFileName.split('?').first;
+          }
+        }
+        if (finalFileName.isEmpty) {
+          finalFileName = 'downloaded_file';
+        }
+        if (!finalFileName.endsWith(extension)) {
+          finalFileName = '$finalFileName$extension';
+        }
+
+        final tempPath = '${appDir.path}/temp_${_uuid.v4()}$extension';
+        
+        final dio = Dio();
+        await dio.download(
+          url,
+          tempPath,
+          onReceiveProgress: (received, total) {
+            if (total != -1 && onProgress != null) {
+              onProgress(received / total);
+            }
+          },
+        );
+
+        // Now add using our standard path copy and duration extraction
+        final newItem = await addMediaItem(
+          sourcePath: tempPath,
+          originalName: finalFileName,
+          type: type,
+        );
+
+        // Delete the temp downloaded file
+        final tempFile = File(tempPath);
+        if (await tempFile.exists()) {
+          await tempFile.delete();
+        }
+
+        return newItem;
       }
-
-      return newItem;
     } catch (e) {
       debugPrint("Error downloading media: $e");
       return null;
