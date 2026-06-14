@@ -228,18 +228,32 @@ class _VideosScreenState extends State<VideosScreen> {
             Expanded(
               child: libraryManager.isLoading
                   ? const Center(child: CircularProgressIndicator())
-                  : filteredItems.isEmpty
-                      ? Center(
-                          child: Text(
-                            _searchQuery.isEmpty 
-                                ? 'No media imported yet.\nGo to the Imports tab to add videos or audio!' 
-                                : 'No matching items found',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: AppStyles.textGray, fontSize: 16),
-                          ),
-                        )
-                      : ListView.separated(
-                          itemCount: filteredItems.length,
+                  : RefreshIndicator(
+                      onRefresh: () async {
+                        await libraryManager.syncItunesFiles();
+                      },
+                      color: AppStyles.primaryRed,
+                      child: filteredItems.isEmpty
+                          ? ListView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: [
+                                SizedBox(
+                                  height: MediaQuery.of(context).size.height * 0.5,
+                                  child: Center(
+                                    child: Text(
+                                      _searchQuery.isEmpty 
+                                          ? 'No media imported yet.\nGo to the Imports tab to add videos or audio!\n\n(Or drag down to scan iTunes files)' 
+                                          : 'No matching items found',
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(color: AppStyles.textGray, fontSize: 16),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          : ListView.separated(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              itemCount: filteredItems.length,
                           separatorBuilder: (context, index) => const Divider(
                             height: 0.5,
                             indent: 90, // indentation after the thumbnail to match iOS
