@@ -44,6 +44,9 @@ class MediaLibraryManager with ChangeNotifier {
         final List<dynamic> decoded = jsonDecode(playlistJson);
         _playlists = decoded.map((item) => Playlist.fromJson(item)).toList();
       }
+
+      // Automatically sync iTunes / Finder files on startup
+      await syncItunesFiles();
     } catch (e) {
       debugPrint("Error loading library: $e");
     } finally {
@@ -60,6 +63,107 @@ class MediaLibraryManager with ChangeNotifier {
       await prefs.setString('playlists', jsonEncode(_playlists.map((e) => e.toJson()).toList()));
     } catch (e) {
       debugPrint("Error saving library: $e");
+    }
+  }
+
+  // Sync iTunes / Finder shared files in the Documents directory
+  Future<void> syncItunesFiles() async {
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final dir = Directory(appDir.path);
+      if (!await dir.exists()) return;
+
+      final List<FileSystemEntity> entities = await dir.list().toList();
+      final List<File> files = entities.whereType<File>().toList();
+
+      final existingPaths = _mediaItems.map((item) => item.path.toLowerCase()).toSet();
+      bool updated = false;
+
+      // 1. Import files that exist on disk but are missing from SharedPreferences
+      for (var file in files) {
+        final path = file.path;
+        final name = file.path.split('/').last;
+
+        // Skip temp downloader files
+        if (name.startsWith('temp_')) continue;
+
+        if (existingPaths.contains(path.toLowerCase())) {
+          continue;
+        }
+
+        // Determine type based on extension
+        final nameLower = name.toLowerCase();
+        MediaType? type;
+        if (nameLower.endsWith('.mp4') || nameLower.endsWith('.mov') || nameLower.endsWith('.avi')) {
+          type = MediaType.video;
+        } else if (nameLower.endsWith('.mp3') || nameLower.endsWith('.m4a') || nameLower.endsWith('.wav')) {
+          type = MediaType.audio;
+        }
+
+        if (type != null) {
+          // Resolve duration for the manually added file
+          Duration duration = Duration.zero;
+          try {
+            if (type == MediaType.video) {
+              final controller = VideoPlayerController.file(file);
+              await controller.initialize();
+              duration = controller.value.duration;
+              await controller.dispose();
+            } else {
+              final audioPlayer = AudioPlayer();
+              final durationRes = await audioPlayer.setFilePath(path);
+              duration = durationRes ?? Duration.zero;
+              await audioPlayer.dispose();
+            }
+          } catch (e) {
+            debugPrint("Error extracting duration for iTunes file $name: $e");
+          }
+
+          final newItem = MediaItem(
+            id: _uuid.v4(),
+            title: name,
+            path: path,
+            type: type,
+            duration: duration,
+            addedDate: DateTime.now(),
+          );
+
+          _mediaItems.insert(0, newItem);
+          existingPaths.add(path.toLowerCase());
+          updated = true;
+        }
+      }
+
+      // 2. Clean up files in library metadata that no longer exist on disk (deleted from iTunes)
+      final List<MediaItem> toRemove = [];
+      for (var item in _mediaItems) {
+        if (item.path.startsWith(appDir.path)) {
+          final file = File(item.path);
+          if (!await file.exists()) {
+            toRemove.add(item);
+          }
+        }
+      }
+
+      if (toRemove.isNotEmpty) {
+        for (var item in toRemove) {
+          _mediaItems.removeWhere((e) => e.id == item.id);
+          // Also clean up from playlists
+          for (var i = 0; i < _playlists.length; i++) {
+            final updatedItems = List<MediaItem>.from(_playlists[i].items)
+              ..removeWhere((e) => e.id == item.id);
+            _playlists[i] = _playlists[i].copyWith(items: updatedItems);
+          }
+        }
+        updated = true;
+      }
+
+      if (updated) {
+        await _saveLibrary();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint("Error syncing iTunes files: $e");
     }
   }
 
