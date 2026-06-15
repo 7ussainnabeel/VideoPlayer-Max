@@ -69,23 +69,87 @@ class MediaLibraryManager with ChangeNotifier {
     notifyListeners();
   }
 
+  // Update absolute paths to match the current app documents directory (deals with iOS sandbox UUID changes)
+  String _normalizePath(String savedPath, String currentDocsPath) {
+    if (savedPath.contains('/Documents/')) {
+      final parts = savedPath.split('/Documents/');
+      if (parts.length > 1) {
+        return '$currentDocsPath/${parts.last}';
+      }
+    }
+    return savedPath;
+  }
+
+  bool _isUuidName(String name) {
+    final baseName = name.contains('.') ? name.substring(0, name.lastIndexOf('.')) : name;
+    final uuidRegExp = RegExp(r'^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$');
+    return uuidRegExp.hasMatch(baseName);
+  }
+
   // Load from SharedPreferences
   Future<void> _loadLibrary() async {
     _isLoading = true;
     notifyListeners();
     try {
       final prefs = await SharedPreferences.getInstance();
+      final appDir = await getApplicationDocumentsDirectory();
+      final currentDocsPath = appDir.path;
       
       final mediaJson = prefs.getString('media_library');
       if (mediaJson != null) {
         final List<dynamic> decoded = jsonDecode(mediaJson);
-        _mediaItems = decoded.map((item) => MediaItem.fromJson(item)).toList();
+        _mediaItems = decoded.map((item) {
+          final media = MediaItem.fromJson(item);
+          final normalizedPath = _normalizePath(media.path, currentDocsPath);
+          final normalizedThumb = media.thumbnailPath != null 
+              ? _normalizePath(media.thumbnailPath!, currentDocsPath)
+              : null;
+          return media.copyWith(path: normalizedPath, thumbnailPath: normalizedThumb);
+        }).toList();
       }
 
       final playlistJson = prefs.getString('playlists');
       if (playlistJson != null) {
         final List<dynamic> decoded = jsonDecode(playlistJson);
-        _playlists = decoded.map((item) => Playlist.fromJson(item)).toList();
+        _playlists = decoded.map((item) {
+          final playlist = Playlist.fromJson(item);
+          final normalizedItems = playlist.items.map((media) {
+            final normalizedPath = _normalizePath(media.path, currentDocsPath);
+            final normalizedThumb = media.thumbnailPath != null 
+                ? _normalizePath(media.thumbnailPath!, currentDocsPath)
+                : null;
+            return media.copyWith(path: normalizedPath, thumbnailPath: normalizedThumb);
+          }).toList();
+          return playlist.copyWith(items: normalizedItems);
+        }).toList();
+      }
+
+      // De-duplicate items pointing to the same filename in documents
+      final Map<String, MediaItem> uniqueFileItems = {};
+      bool libraryDeduplicated = false;
+      for (var item in _mediaItems) {
+        final fileName = item.path.split('/').last.toLowerCase();
+        if (uniqueFileItems.containsKey(fileName)) {
+          final existing = uniqueFileItems[fileName]!;
+          if (_isUuidName(existing.title) && !_isUuidName(item.title)) {
+            uniqueFileItems[fileName] = item;
+          }
+          libraryDeduplicated = true;
+        } else {
+          uniqueFileItems[fileName] = item;
+        }
+      }
+      
+      if (libraryDeduplicated) {
+        _mediaItems = uniqueFileItems.values.toList();
+        // Clean playlists too (prune removed items)
+        final validIds = _mediaItems.map((e) => e.id).toSet();
+        for (var i = 0; i < _playlists.length; i++) {
+          final updatedItems = List<MediaItem>.from(_playlists[i].items)
+            ..removeWhere((e) => !validIds.contains(e.id));
+          _playlists[i] = _playlists[i].copyWith(items: updatedItems);
+        }
+        await _saveLibrary();
       }
 
       // Load app lock passcode
