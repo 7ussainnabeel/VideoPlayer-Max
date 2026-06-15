@@ -351,12 +351,23 @@ class MediaLibraryManager with ChangeNotifier {
           yt.close();
         }
       } else {
+        String downloadUrl = url;
+        String? resolvedFileName;
+
+        if (_isTwitterOrInstagramUrl(url)) {
+          final resolved = await _resolveCobaltUrl(url, type);
+          if (resolved != null) {
+            downloadUrl = resolved.url;
+            resolvedFileName = resolved.filename;
+          }
+        }
+
         final extension = type == MediaType.video ? '.mp4' : '.mp3';
         
         // Ensure file name has extension
-        String finalFileName = fileName ?? '';
+        String finalFileName = fileName ?? resolvedFileName ?? '';
         if (finalFileName.isEmpty) {
-          finalFileName = url.split('/').last;
+          finalFileName = downloadUrl.split('/').last;
           if (finalFileName.contains('?')) {
             finalFileName = finalFileName.split('?').first;
           }
@@ -372,7 +383,7 @@ class MediaLibraryManager with ChangeNotifier {
         
         final dio = Dio();
         await dio.download(
-          url,
+          downloadUrl,
           tempPath,
           onReceiveProgress: (received, total) {
             if (total != -1 && onProgress != null) {
@@ -520,4 +531,56 @@ class MediaLibraryManager with ChangeNotifier {
       notifyListeners();
     }
   }
+
+  bool _isTwitterOrInstagramUrl(String url) {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null) return false;
+    final host = uri.host.toLowerCase();
+    return host.contains('twitter.com') ||
+        host.contains('x.com') ||
+        host.contains('instagram.com') ||
+        host.contains('tiktok.com');
+  }
+
+  Future<_ResolvedMedia?> _resolveCobaltUrl(String url, MediaType type) async {
+    try {
+      final dio = Dio();
+      final response = await dio.post(
+        'https://api.cobalt.tools/',
+        data: {
+          'url': url,
+          'audioOnly': type == MediaType.audio,
+          'aFormat': 'mp3',
+          'vQuality': '720',
+        },
+        options: Options(
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data as Map<String, dynamic>;
+        final status = data['status'] as String?;
+        if (status == 'stream' || status == 'redirect' || status == 'tunnel') {
+          final resolvedUrl = data['url'] as String?;
+          final filename = data['filename'] as String?;
+          if (resolvedUrl != null) {
+            return _ResolvedMedia(resolvedUrl, filename);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Cobalt resolution error: $e");
+    }
+    return null;
+  }
+}
+
+class _ResolvedMedia {
+  final String url;
+  final String? filename;
+  _ResolvedMedia(this.url, this.filename);
 }

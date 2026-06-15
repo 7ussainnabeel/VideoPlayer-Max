@@ -7,17 +7,24 @@ class GlassBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isLight = Theme.of(context).brightness == Brightness.light;
     return Stack(
       children: [
-        // Base mesh dark background
+        // Base mesh background
         Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [
-                Color(0xFF0F172A), // Dark slate blue
-                Color(0xFF020617), // Deep midnight blue/black
-                Color(0xFF1E1E2F), // Dark purple tint
-              ],
+              colors: isLight
+                  ? [
+                      const Color(0xFFF8FAFC),
+                      const Color(0xFFF1F5F9),
+                      const Color(0xFFE2E8F0),
+                    ]
+                  : [
+                      const Color(0xFF0F172A), // Dark slate blue
+                      const Color(0xFF020617), // Deep midnight blue/black
+                      const Color(0xFF1E1E2F), // Dark purple tint
+                    ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -33,7 +40,7 @@ class GlassBackground extends StatelessWidget {
             height: 380,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFFFF7E5F).withValues(alpha: 0.12),
+              color: const Color(0xFFFF7E5F).withValues(alpha: isLight ? 0.06 : 0.12),
             ),
           ),
         ),
@@ -47,7 +54,7 @@ class GlassBackground extends StatelessWidget {
             height: 420,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF9B5DE5).withValues(alpha: 0.15),
+              color: const Color(0xFF9B5DE5).withValues(alpha: isLight ? 0.07 : 0.15),
             ),
           ),
         ),
@@ -61,7 +68,7 @@ class GlassBackground extends StatelessWidget {
             height: 320,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF00F2FE).withValues(alpha: 0.10),
+              color: const Color(0xFF00F2FE).withValues(alpha: isLight ? 0.05 : 0.10),
             ),
           ),
         ),

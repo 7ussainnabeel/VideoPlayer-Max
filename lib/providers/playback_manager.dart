@@ -4,13 +4,18 @@ import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_session/audio_session.dart';
+import 'package:audio_service/audio_service.dart' as aud_service;
 import '../models/media_item.dart';
+import 'audio_handler.dart';
 
 enum PlaybackRepeatMode { none, one, all }
 
 class PlaybackManager with ChangeNotifier {
   PlaybackManager() {
     _initAudioSession();
+    if (VideoPlayerMaxAudioHandler.instance != null) {
+      VideoPlayerMaxAudioHandler.instance!.playbackManager = this;
+    }
   }
 
   Future<void> _initAudioSession() async {
@@ -117,7 +122,12 @@ class PlaybackManager with ChangeNotifier {
     try {
       if (item.isVideo) {
         _isVideoActive = true;
-        _videoController = VideoPlayerController.file(File(item.path));
+        _videoController = VideoPlayerController.file(
+          File(item.path),
+          videoPlayerOptions: VideoPlayerOptions(
+            allowBackgroundPlayback: true,
+          ),
+        );
         
         await _videoController!.initialize();
         await _videoController!.setVolume(_volume);
@@ -138,6 +148,7 @@ class PlaybackManager with ChangeNotifier {
           if (_audioPlayer == null) return;
           _isPlaying = _audioPlayer!.playing;
           _position = _audioPlayer!.position;
+          _updateBackgroundPlaybackState();
           notifyListeners();
         });
 
@@ -149,6 +160,8 @@ class PlaybackManager with ChangeNotifier {
 
         await _audioPlayer!.play();
       }
+      _updateBackgroundMetadata();
+      _updateBackgroundPlaybackState();
     } catch (e) {
       debugPrint("Playback error: $e");
       // Fallback: move to next item
@@ -169,6 +182,7 @@ class PlaybackManager with ChangeNotifier {
       _videoController!.removeListener(_videoListener);
       _onItemCompleted();
     }
+    _updateBackgroundPlaybackState();
     notifyListeners();
   }
 
@@ -177,6 +191,7 @@ class PlaybackManager with ChangeNotifier {
     _positionTimer = Timer.periodic(const Duration(milliseconds: 200), (timer) {
       if (_videoController != null && _isPlaying) {
         _position = _videoController!.value.position;
+        _updateBackgroundPlaybackState();
         notifyListeners();
       }
     });
@@ -203,6 +218,7 @@ class PlaybackManager with ChangeNotifier {
         await _audioPlayer!.play();
         _isPlaying = true;
       }
+      _updateBackgroundPlaybackState();
     } catch (e) {
       debugPrint("Error resuming: $e");
     }
@@ -219,6 +235,7 @@ class PlaybackManager with ChangeNotifier {
         await _audioPlayer!.pause();
         _isPlaying = false;
       }
+      _updateBackgroundPlaybackState();
     } catch (e) {
       debugPrint("Error pausing: $e");
     }
@@ -242,6 +259,7 @@ class PlaybackManager with ChangeNotifier {
         await _audioPlayer!.seek(position);
         _position = position;
       }
+      _updateBackgroundPlaybackState();
     } catch (e) {
       debugPrint("Error seeking: $e");
     }
@@ -374,8 +392,51 @@ class PlaybackManager with ChangeNotifier {
     notifyListeners();
   }
 
+  void _updateBackgroundMetadata() {
+    final item = currentItem;
+    if (item == null) return;
+    
+    VideoPlayerMaxAudioHandler.instance?.setMediaItem(aud_service.MediaItem(
+      id: item.id,
+      album: 'Local Library',
+      title: item.title,
+      artist: item.isVideo ? 'Video' : 'Audio',
+      duration: _duration,
+      artUri: item.thumbnailPath != null ? Uri.file(item.thumbnailPath!) : null,
+    ));
+  }
+
+  void _updateBackgroundPlaybackState() {
+    final playing = _isPlaying;
+    
+    final controls = [
+      aud_service.MediaControl.skipToPrevious,
+      playing ? aud_service.MediaControl.pause : aud_service.MediaControl.play,
+      aud_service.MediaControl.skipToNext,
+    ];
+
+    VideoPlayerMaxAudioHandler.instance?.updatePlaybackState(aud_service.PlaybackState(
+      controls: controls,
+      systemActions: const {
+        aud_service.MediaAction.seek,
+        aud_service.MediaAction.skipToNext,
+        aud_service.MediaAction.skipToPrevious,
+      },
+      androidCompactActionIndices: const [0, 1, 2],
+      playing: playing,
+      processingState: _isPlaying 
+          ? aud_service.AudioProcessingState.ready 
+          : aud_service.AudioProcessingState.idle,
+      updatePosition: _position,
+      updateTime: DateTime.now(),
+    ));
+  }
+
   @override
   Future<void> dispose() async {
+    if (VideoPlayerMaxAudioHandler.instance != null && VideoPlayerMaxAudioHandler.instance!.playbackManager == this) {
+      VideoPlayerMaxAudioHandler.instance!.playbackManager = null;
+    }
     await _cleanupPlayers();
     super.dispose();
   }

@@ -8,8 +8,24 @@ import 'screens/main_shell.dart';
 
 import 'screens/pin_lock_screen.dart';
 
-void main() {
+import 'package:audio_service/audio_service.dart';
+import 'providers/audio_handler.dart';
+
+late AudioHandler audioHandler;
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize AudioService for lock screen and background controls
+  audioHandler = await AudioService.init(
+    builder: () => VideoPlayerMaxAudioHandler(),
+    config: const AudioServiceConfig(
+      androidNotificationChannelId: 'com.multimedia.player.channel.audio',
+      androidNotificationChannelName: 'VideoPlayer Max Playback',
+      androidNotificationOngoing: true,
+      androidShowNotificationBadge: true,
+    ),
+  );
   
   // Lock orientation to portrait (standard for this layout)
   SystemChrome.setPreferredOrientations([
@@ -58,33 +74,51 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'VideoPlayer Max',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        primaryColor: AppStyles.primaryRed,
-        scaffoldBackgroundColor: AppStyles.scaffoldBackground,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: AppStyles.primaryRed,
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-        sliderTheme: SliderThemeData(
-          activeTrackColor: AppStyles.primaryRed,
-          thumbColor: AppStyles.primaryRed,
-          overlayColor: AppStyles.primaryRed.withValues(alpha: 0.12),
-          trackHeight: 3.0,
-        ),
-      ),
-      home: Consumer<MediaLibraryManager>(
-        builder: (context, libraryManager, child) {
-          if (libraryManager.isAppLocked) {
-            return const PinLockScreen();
-          }
-          return const MainShell();
-        },
-      ),
+    return Consumer<MediaLibraryManager>(
+      builder: (context, libraryManager, child) {
+        return MaterialApp(
+          title: 'VideoPlayer Max',
+          debugShowCheckedModeBanner: false,
+          themeMode: libraryManager.themeMode,
+          theme: ThemeData(
+            useMaterial3: true,
+            brightness: Brightness.light,
+            primaryColor: AppStyles.primaryRed,
+            scaffoldBackgroundColor: const Color(0xFFF1F5F9),
+            appBarTheme: const AppBarTheme(
+              backgroundColor: AppStyles.primaryRed,
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            sliderTheme: SliderThemeData(
+              activeTrackColor: AppStyles.primaryRed,
+              thumbColor: AppStyles.primaryRed,
+              overlayColor: AppStyles.primaryRed.withValues(alpha: 0.12),
+              trackHeight: 3.0,
+            ),
+          ),
+          darkTheme: ThemeData(
+            useMaterial3: true,
+            brightness: Brightness.dark,
+            primaryColor: AppStyles.primaryRed,
+            scaffoldBackgroundColor: AppStyles.scaffoldBackground,
+            appBarTheme: const AppBarTheme(
+              backgroundColor: AppStyles.primaryRed,
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+            sliderTheme: SliderThemeData(
+              activeTrackColor: AppStyles.primaryRed,
+              thumbColor: AppStyles.primaryRed,
+              overlayColor: AppStyles.primaryRed.withValues(alpha: 0.12),
+              trackHeight: 3.0,
+            ),
+          ),
+          home: libraryManager.isAppLocked
+              ? const PinLockScreen()
+              : const MainShell(),
+        );
+      },
     );
   }
 }

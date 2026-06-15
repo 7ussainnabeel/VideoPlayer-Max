@@ -37,6 +37,7 @@ dependencies:
   video_player: ^2.11.1
   just_audio: ^0.10.5
   audio_session: ^0.2.2
+  audio_service: ^0.18.12
   file_picker: ^11.0.2
   image_picker: ^1.2.2
   path_provider: ^2.1.5
