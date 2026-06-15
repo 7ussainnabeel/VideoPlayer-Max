@@ -424,7 +424,7 @@ class PlaybackManager with ChangeNotifier {
       },
       androidCompactActionIndices: const [0, 1, 2],
       playing: playing,
-      processingState: _isPlaying 
+      processingState: currentItem != null 
           ? aud_service.AudioProcessingState.ready 
           : aud_service.AudioProcessingState.idle,
       updatePosition: _position,
