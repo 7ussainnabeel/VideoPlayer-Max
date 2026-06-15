@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:dio/dio.dart';
 import '../constants/styles.dart';
 import '../models/media_item.dart';
 import '../providers/media_library_manager.dart';
@@ -22,6 +23,7 @@ class _ImportsScreenState extends State<ImportsScreen> {
   final _picker = ImagePicker();
   bool _isDownloading = false;
   double _downloadProgress = 0.0;
+  CancelToken? _cancelToken;
 
   void _navigateToPlayer() {
     final playbackManager = Provider.of<PlaybackManager>(context, listen: false);
@@ -239,8 +241,8 @@ class _ImportsScreenState extends State<ImportsScreen> {
     );
   }
 
-  // Trigger downloader
   Future<void> _startDownload(String url, String? fileName, MediaType type) async {
+    _cancelToken = CancelToken();
     setState(() {
       _isDownloading = true;
       _downloadProgress = 0.0;
@@ -251,6 +253,7 @@ class _ImportsScreenState extends State<ImportsScreen> {
       url: url,
       fileName: fileName,
       type: type,
+      cancelToken: _cancelToken,
       onProgress: (progress) {
         setState(() {
           _downloadProgress = progress;
@@ -258,17 +261,22 @@ class _ImportsScreenState extends State<ImportsScreen> {
       },
     );
 
+    final isCancelled = _cancelToken?.isCancelled ?? false;
+
     if (!mounted) return;
 
     setState(() {
       _isDownloading = false;
     });
 
-    if (item != null) {
+    if (isCancelled) {
+      _showImportError("Download cancelled");
+    } else if (item != null) {
       _showImportSuccess("Downloaded ${item.title}");
     } else {
       _showImportError("Failed to download file. Verify the URL is correct and public.");
     }
+    _cancelToken = null;
   }
 
   void _showImportSuccess(String name) {
@@ -558,6 +566,26 @@ class _ImportsScreenState extends State<ImportsScreen> {
                           Text(
                             "${(_downloadProgress * 100).toStringAsFixed(0)}%",
                             style: TextStyle(color: AppStyles.getSubtextColor(context), fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: 120,
+                            child: CupertinoButton(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              color: AppStyles.primaryRed.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                              child: const Text(
+                                "Cancel",
+                                style: TextStyle(
+                                  color: AppStyles.primaryRed,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              onPressed: () {
+                                _cancelToken?.cancel();
+                              },
+                            ),
                           ),
                         ],
                       ),

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -296,9 +297,23 @@ class MediaLibraryManager with ChangeNotifier {
     try {
       // 1. Copy file to App Documents directory for persistence
       final appDir = await getApplicationDocumentsDirectory();
-      final extension = originalName.contains('.') 
-          ? originalName.substring(originalName.lastIndexOf('.'))
-          : (type == MediaType.video ? '.mp4' : '.mp3');
+      String extension = '';
+      if (originalName.contains('.')) {
+        extension = originalName.substring(originalName.lastIndexOf('.'));
+      }
+      
+      String sourceExt = '';
+      if (sourcePath.contains('.')) {
+        sourceExt = sourcePath.substring(sourcePath.lastIndexOf('.'));
+      }
+      
+      if (sourceExt.isNotEmpty && (extension.isEmpty || (extension.toLowerCase() == '.mp3' && sourceExt.toLowerCase() != '.mp3'))) {
+        extension = sourceExt;
+      }
+      
+      if (extension.isEmpty) {
+        extension = type == MediaType.video ? '.mp4' : '.mp3';
+      }
       
       final newFileName = '${_uuid.v4()}$extension';
       final savedFile = File('${appDir.path}/$newFileName');
@@ -353,10 +368,13 @@ class MediaLibraryManager with ChangeNotifier {
     required String url,
     String? fileName,
     required MediaType type,
+    CancelToken? cancelToken,
     Function(double)? onProgress,
   }) async {
     _isLoading = true;
     notifyListeners();
+
+    String? tempPathToDelete;
 
     try {
       final appDir = await getApplicationDocumentsDirectory();
@@ -395,6 +413,7 @@ class MediaLibraryManager with ChangeNotifier {
           }
 
           final tempPath = '${appDir.path}/temp_${_uuid.v4()}$extension';
+          tempPathToDelete = tempPath;
           final tempFile = File(tempPath);
           final fileStream = tempFile.openWrite();
 
@@ -402,16 +421,25 @@ class MediaLibraryManager with ChangeNotifier {
           final totalBytes = streamInfo.size.totalBytes;
           var downloadedBytes = 0;
 
-          await for (final chunk in stream) {
-            downloadedBytes += chunk.length;
-            fileStream.add(chunk);
-            if (totalBytes > 0 && onProgress != null) {
-              onProgress(downloadedBytes / totalBytes);
+          try {
+            await for (final chunk in stream) {
+              if (cancelToken != null && cancelToken.isCancelled) {
+                throw DioException(
+                  requestOptions: RequestOptions(path: url),
+                  type: DioExceptionType.cancel,
+                  error: "Download cancelled by user",
+                );
+              }
+              downloadedBytes += chunk.length;
+              fileStream.add(chunk);
+              if (totalBytes > 0 && onProgress != null) {
+                onProgress(downloadedBytes / totalBytes);
+              }
             }
+          } finally {
+            await fileStream.flush();
+            await fileStream.close();
           }
-
-          await fileStream.flush();
-          await fileStream.close();
 
           final newItem = await addMediaItem(
             sourcePath: tempPath,
@@ -422,6 +450,7 @@ class MediaLibraryManager with ChangeNotifier {
           if (await tempFile.exists()) {
             await tempFile.delete();
           }
+          tempPathToDelete = null;
 
           return newItem;
         } finally {
@@ -451,11 +480,13 @@ class MediaLibraryManager with ChangeNotifier {
 
         final defaultExtension = type == MediaType.video ? '.mp4' : '.mp3';
         final tempPath = '${appDir.path}/temp_${_uuid.v4()}$defaultExtension';
+        tempPathToDelete = tempPath;
         
         final dio = Dio();
         final response = await dio.download(
           downloadUrl,
           tempPath,
+          cancelToken: cancelToken,
           onReceiveProgress: (received, total) {
             if (total != -1 && onProgress != null) {
               onProgress(received / total);
@@ -519,6 +550,26 @@ class MediaLibraryManager with ChangeNotifier {
           final correctTempPath = '${appDir.path}/temp_${_uuid.v4()}$ext';
           await File(tempPath).rename(correctTempPath);
           savePath = correctTempPath;
+          tempPathToDelete = correctTempPath;
+        }
+
+        // If type is Audio, but the resolved download is a video container, convert/extract audio natively
+        final videoExtensions = {'.mp4', '.mov', '.m4v', '.avi', '.3gp', '.mkv'};
+        if (type == MediaType.audio && videoExtensions.contains(ext.toLowerCase())) {
+          final extractedPath = await _extractAudioNatively(savePath);
+          if (extractedPath != null) {
+            final videoFile = File(savePath);
+            if (await videoFile.exists()) {
+              await videoFile.delete();
+            }
+            savePath = extractedPath;
+            tempPathToDelete = extractedPath;
+            ext = '.m4a';
+            final basename = finalFileName.contains('.') 
+                ? finalFileName.substring(0, finalFileName.lastIndexOf('.'))
+                : finalFileName;
+            finalFileName = '$basename.m4a';
+          }
         }
 
         // Now add using our standard path copy and duration extraction
@@ -533,11 +584,20 @@ class MediaLibraryManager with ChangeNotifier {
         if (await tempFile.exists()) {
           await tempFile.delete();
         }
+        tempPathToDelete = null;
 
         return newItem;
       }
     } catch (e) {
       debugPrint("Error downloading media: $e");
+      if (tempPathToDelete != null) {
+        try {
+          final file = File(tempPathToDelete);
+          if (await file.exists()) {
+            await file.delete();
+          }
+        } catch (_) {}
+      }
       return null;
     } finally {
       _isLoading = false;
@@ -766,6 +826,23 @@ class MediaLibraryManager with ChangeNotifier {
         host.contains('x.com') ||
         host.contains('instagram.com') ||
         host.contains('tiktok.com');
+  }
+
+  static const _converterChannel = MethodChannel('com.videoplayermax.media/converter');
+
+  Future<String?> _extractAudioNatively(String inputPath) async {
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final outputPath = '${appDir.path}/extracted_${_uuid.v4()}.m4a';
+      final String? path = await _converterChannel.invokeMethod<String>('extractAudio', {
+        'inputPath': inputPath,
+        'outputPath': outputPath,
+      });
+      return path;
+    } catch (e) {
+      debugPrint("Error extracting audio natively: $e");
+      return null;
+    }
   }
 
   Future<_ResolvedMedia?> _resolveCobaltUrl(String url, MediaType type) async {
