@@ -2,12 +2,19 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:gal/gal.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 import '../constants/styles.dart';
 import '../models/media_item.dart';
 import '../providers/media_library_manager.dart';
 import '../providers/playback_manager.dart';
 import 'player_screen.dart';
+import 'pin_lock_screen.dart';
 import '../widgets/video_preview_widget.dart';
+import '../widgets/glass_background.dart';
+import '../widgets/glass_container.dart';
 
 class VideosScreen extends StatefulWidget {
   const VideosScreen({super.key});
@@ -19,7 +26,6 @@ class VideosScreen extends StatefulWidget {
 class _VideosScreenState extends State<VideosScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  bool _isScreenLocked = false;
 
   @override
   void dispose() {
@@ -37,12 +43,7 @@ class _VideosScreenState extends State<VideosScreen> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("No media currently playing"),
-          backgroundColor: AppStyles.primaryRed,
-        ),
-      );
+      _showSnackbar("No media currently playing", isError: true);
     }
   }
 
@@ -54,6 +55,368 @@ class _VideosScreenState extends State<VideosScreen> {
       return "${duration.inHours}:$twoDigitMinutes:$twoDigitSeconds";
     }
     return "${duration.inMinutes}:$twoDigitSeconds";
+  }
+
+  void _showSnackbar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+        backgroundColor: isError ? Colors.redAccent.withValues(alpha: 0.9) : Colors.green.withValues(alpha: 0.9),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(bottom: 90, left: 20, right: 20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // Action Menu Bottom Sheet
+  void _showVideoActionsMenu(BuildContext context, MediaItem item) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black45,
+      isScrollControlled: true,
+      builder: (context) {
+        return GlassContainer(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+          opacity: 0.14,
+          blur: 24.0,
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Drag handle indicator
+                const SizedBox(height: 8),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                
+                // Header (title of the video)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  child: Row(
+                    children: [
+                      Icon(
+                        item.isVideo ? Icons.movie_creation_outlined : Icons.music_note_outlined,
+                        color: AppStyles.primaryRed,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          item.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 0.5, color: Colors.white10),
+                
+                // Actions List
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    physics: const ClampingScrollPhysics(),
+                    children: [
+                      _buildActionItem(
+                        icon: Icons.share_outlined,
+                        title: 'Share Video',
+                        onTap: () {
+                          Navigator.pop(context);
+                          _shareMedia(item);
+                        },
+                      ),
+                      _buildActionItem(
+                        icon: Icons.save_alt_outlined,
+                        title: 'Save to Gallery',
+                        onTap: () {
+                          Navigator.pop(context);
+                          _saveToGallery(item);
+                        },
+                      ),
+                      _buildActionItem(
+                        icon: Icons.music_note_outlined,
+                        title: 'Convert to MP3',
+                        onTap: () {
+                          Navigator.pop(context);
+                          _convertToMp3(item);
+                        },
+                      ),
+                      _buildActionItem(
+                        icon: Icons.launch_outlined,
+                        title: 'Export / Open In',
+                        onTap: () {
+                          Navigator.pop(context);
+                          _shareMedia(item); 
+                        },
+                      ),
+                      _buildActionItem(
+                        icon: Icons.edit_outlined,
+                        title: 'Rename',
+                        onTap: () {
+                          Navigator.pop(context);
+                          _renameMedia(item);
+                        },
+                      ),
+                      _buildActionItem(
+                        icon: Icons.playlist_add,
+                        title: 'Add to Playlist',
+                        onTap: () {
+                          Navigator.pop(context);
+                          _addToPlaylist(item);
+                        },
+                      ),
+                      _buildActionItem(
+                        icon: Icons.info_outline,
+                        title: 'File Information',
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showMediaInfo(context, item);
+                        },
+                      ),
+                      _buildActionItem(
+                        icon: Icons.delete_outline,
+                        title: 'Delete',
+                        textColor: Colors.redAccent,
+                        iconColor: Colors.redAccent,
+                        onTap: () {
+                          Navigator.pop(context);
+                          _confirmDelete(item);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildActionItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    Color textColor = Colors.white,
+    Color iconColor = Colors.white70,
+  }) {
+    return ListTile(
+      leading: Icon(icon, color: iconColor, size: 22),
+      title: Text(
+        title,
+        style: TextStyle(color: textColor, fontSize: 15, fontWeight: FontWeight.w500),
+      ),
+      onTap: onTap,
+    );
+  }
+
+  Future<void> _shareMedia(MediaItem item) async {
+    try {
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(item.path)],
+          text: item.title,
+        ),
+      );
+    } catch (e) {
+      _showSnackbar('Error sharing file: $e', isError: true);
+    }
+  }
+
+  Future<void> _saveToGallery(MediaItem item) async {
+    _showSnackbar('Saving video to gallery...');
+    try {
+      if (item.isVideo) {
+        await Gal.putVideo(item.path);
+        _showSnackbar('Video saved to photos gallery!');
+      } else {
+        _showSnackbar('Saving audio files to Gallery is not supported.', isError: true);
+      }
+    } catch (e) {
+      _showSnackbar('Failed to save: $e', isError: true);
+    }
+  }
+
+  Future<void> _convertToMp3(MediaItem item) async {
+    _showSnackbar('Converting to Audio item...');
+    try {
+      final lib = Provider.of<MediaLibraryManager>(context, listen: false);
+      final file = File(item.path);
+      if (!await file.exists()) {
+        _showSnackbar('Original file not found on disk.', isError: true);
+        return;
+      }
+
+      final nameWithoutExt = item.title.contains('.') 
+          ? item.title.substring(0, item.title.lastIndexOf('.'))
+          : item.title;
+      
+      final newName = '[Audio] $nameWithoutExt.mp3';
+      
+      final appDir = await getApplicationDocumentsDirectory();
+      final newFileName = '${const Uuid().v4()}.mp3';
+      final savedFile = File('${appDir.path}/$newFileName');
+      
+      await file.copy(savedFile.path);
+
+      final newItem = await lib.addMediaItem(
+        sourcePath: savedFile.path,
+        originalName: newName,
+        type: MediaType.audio,
+      );
+
+      if (await savedFile.exists() && newItem != null) {
+        await savedFile.delete();
+      }
+
+      if (newItem != null) {
+        _showSnackbar('Successfully converted to Audio item!');
+      } else {
+        _showSnackbar('Failed to register audio item.', isError: true);
+      }
+    } catch (e) {
+      _showSnackbar('Error converting file: $e', isError: true);
+    }
+  }
+
+  void _renameMedia(MediaItem item) {
+    final controller = TextEditingController(text: item.title);
+    showCupertinoDialog(
+      context: context,
+      builder: (context) {
+        return CupertinoAlertDialog(
+          title: const Text('Rename File'),
+          content: Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: CupertinoTextField(
+              controller: controller,
+              placeholder: 'Enter new name',
+              style: const TextStyle(color: Colors.black),
+            ),
+          ),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.pop(context),
+            ),
+            CupertinoDialogAction(
+              child: const Text('Save'),
+              onPressed: () async {
+                final newName = controller.text.trim();
+                if (newName.isNotEmpty) {
+                  Navigator.pop(context);
+                  await Provider.of<MediaLibraryManager>(context, listen: false)
+                      .renameMediaItem(item.id, newName);
+                  _showSnackbar('File renamed successfully.');
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _addToPlaylist(MediaItem item) {
+    final libraryManager = Provider.of<MediaLibraryManager>(context, listen: false);
+    if (libraryManager.playlists.isEmpty) {
+      _showSnackbar('No playlists available. Create one first.', isError: true);
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return GlassContainer(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+          opacity: 0.15,
+          child: SafeArea(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Text(
+                    'Select Playlist',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const Divider(height: 0.5, color: Colors.white10),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: libraryManager.playlists.length,
+                    itemBuilder: (context, index) {
+                      final playlist = libraryManager.playlists[index];
+                      return ListTile(
+                        leading: const Icon(Icons.playlist_add, color: Colors.white70),
+                        title: Text(playlist.name, style: const TextStyle(color: Colors.white)),
+                        onTap: () {
+                          Navigator.pop(context);
+                          libraryManager.addMediaToPlaylist(playlist.id, item);
+                          _showSnackbar('Added to: ${playlist.name}');
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _confirmDelete(MediaItem item) {
+    showCupertinoDialog(
+      context: context,
+      builder: (context) => CupertinoAlertDialog(
+        title: const Text('Delete File'),
+        content: Text('Are you sure you want to permanently delete "${item.title}"?'),
+        actions: [
+          CupertinoDialogAction(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: true,
+            child: const Text('Delete'),
+            onPressed: () {
+              Navigator.pop(context);
+              Provider.of<MediaLibraryManager>(context, listen: false).deleteMediaItem(item.id);
+              _showSnackbar('File deleted.');
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   void _showMediaInfo(BuildContext context, MediaItem item) {
@@ -79,13 +442,6 @@ class _VideosScreenState extends State<VideosScreen> {
         ),
         actions: [
           CupertinoDialogAction(
-            child: const Text("Delete", style: TextStyle(color: CupertinoColors.destructiveRed)),
-            onPressed: () {
-              Provider.of<MediaLibraryManager>(context, listen: false).deleteMediaItem(item.id);
-              Navigator.pop(context);
-            },
-          ),
-          CupertinoDialogAction(
             child: const Text("Close"),
             onPressed: () => Navigator.pop(context),
           ),
@@ -105,66 +461,78 @@ class _VideosScreenState extends State<VideosScreen> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: AppStyles.scaffoldBackground,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(50),
-        child: Container(
-          color: AppStyles.primaryRed,
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _isScreenLocked = !_isScreenLocked;
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(_isScreenLocked ? "Screen Locked" : "Screen Unlocked"),
-                          duration: const Duration(seconds: 1),
-                        ),
-                      );
-                    },
-                    child: Text(
-                      _isScreenLocked ? "Unlock" : "Lock",
-                      style: AppStyles.headerActionStyle,
-                    ),
-                  ),
-                  const Text(
-                    'Videos',
-                    style: AppStyles.headerTitleStyle,
-                  ),
-                  GestureDetector(
-                    onTap: _navigateToPlayer,
-                    child: const Text(
-                      'Playing',
-                      style: AppStyles.headerActionStyle,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-      body: IgnorePointer(
-        ignoring: _isScreenLocked,
+      backgroundColor: Colors.transparent,
+      body: GlassBackground(
         child: Column(
           children: [
-            // Search Bar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-              color: Colors.white,
-              child: Container(
-                height: 36,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF2F2F7),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.grey.shade300, width: 0.5),
+            // Custom Glass AppBar
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: GlassContainer(
+                  height: 50,
+                  borderRadius: BorderRadius.circular(25),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          if (libraryManager.appLockPin == null || libraryManager.appLockPin!.isEmpty) {
+                            // Setup passcode
+                            Navigator.push(
+                              context,
+                              CupertinoPageRoute(
+                                builder: (context) => const PinLockScreen(),
+                              ),
+                            );
+                          } else {
+                            // Lock app
+                            libraryManager.lockApp();
+                          }
+                        },
+                        child: const Text(
+                          'Lock',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const Text(
+                        'Videos',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: _navigateToPlayer,
+                        child: const Text(
+                          'Playing',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+              ),
+            ),
+            
+            // Glass Search Bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+              child: GlassContainer(
+                height: 44,
+                borderRadius: BorderRadius.circular(22),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: TextField(
                   controller: _searchController,
                   onChanged: (val) {
@@ -172,62 +540,56 @@ class _VideosScreenState extends State<VideosScreen> {
                       _searchQuery = val;
                     });
                   },
+                  style: const TextStyle(color: Colors.white, fontSize: 15),
                   decoration: const InputDecoration(
-                    prefixIcon: Icon(CupertinoIcons.search, color: Colors.grey, size: 18),
+                    prefixIcon: Icon(CupertinoIcons.search, color: Colors.white60, size: 18),
                     hintText: 'Search...',
-                    hintStyle: TextStyle(color: Colors.grey, fontSize: 14),
+                    hintStyle: TextStyle(color: Colors.white38, fontSize: 15),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(vertical: 8),
+                    contentPadding: EdgeInsets.symmetric(vertical: 11),
                   ),
                 ),
               ),
             ),
             
-            // Shuffle bar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                border: Border(
-                  top: BorderSide(color: AppStyles.dividerColor, width: 0.5),
-                  bottom: BorderSide(color: AppStyles.dividerColor, width: 0.5),
+            // Glass Shuffle Bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+              child: GlassContainer(
+                height: 46,
+                borderRadius: BorderRadius.circular(23),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Shuffle Playback',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        playbackManager.toggleShuffle();
+                        _showSnackbar(playbackManager.isShuffle ? "Shuffle Enabled" : "Shuffle Disabled");
+                      },
+                      child: Icon(
+                        Icons.shuffle,
+                        color: playbackManager.isShuffle ? AppStyles.primaryRed : Colors.white60,
+                        size: 22,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Shuffle',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: AppStyles.textDark,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      playbackManager.toggleShuffle();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(playbackManager.isShuffle ? "Shuffle Enabled" : "Shuffle Disabled"),
-                          duration: const Duration(seconds: 1),
-                        ),
-                      );
-                    },
-                    child: Icon(
-                      Icons.shuffle,
-                      color: playbackManager.isShuffle ? AppStyles.primaryRed : Colors.grey,
-                      size: 24,
-                    ),
-                  ),
-                ],
               ),
             ),
 
-            // Media list
+            // Glass Media Cards List
             Expanded(
               child: libraryManager.isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(child: CircularProgressIndicator(color: AppStyles.primaryRed))
                   : RefreshIndicator(
                       onRefresh: () async {
                         await libraryManager.syncItunesFiles();
@@ -245,114 +607,133 @@ class _VideosScreenState extends State<VideosScreen> {
                                           ? 'No media imported yet.\nGo to the Imports tab to add videos or audio!\n\n(Or drag down to scan iTunes files)' 
                                           : 'No matching items found',
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(color: AppStyles.textGray, fontSize: 16),
+                                      style: const TextStyle(color: Colors.white70, fontSize: 15),
                                     ),
                                   ),
                                 ),
                               ],
                             )
-                          : ListView.separated(
+                          : ListView.builder(
                               physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.only(top: 8, bottom: 100),
                               itemCount: filteredItems.length,
-                          separatorBuilder: (context, index) => const Divider(
-                            height: 0.5,
-                            indent: 90, // indentation after the thumbnail to match iOS
-                            color: AppStyles.dividerColor,
-                          ),
-                          itemBuilder: (context, index) {
-                            final item = filteredItems[index];
-                            final isCurrentPlaying = playbackManager.currentItem?.id == item.id;
+                              itemBuilder: (context, index) {
+                                final item = filteredItems[index];
+                                final isCurrentPlaying = playbackManager.currentItem?.id == item.id;
 
-                            return Container(
-                              color: Colors.white,
-                              height: 80,
-                              child: Row(
-                                children: [
-                                  // Thumbnail section
-                                  Container(
-                                    width: 75,
-                                    height: 75,
-                                    margin: const EdgeInsets.all(2.5),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(4),
-                                      child: item.isVideo
-                                          ? VideoPreviewWidget(videoPath: item.path)
-                                          : (item.thumbnailPath != null
-                                              ? Image.file(
-                                                  File(item.thumbnailPath!),
-                                                  fit: BoxFit.cover,
-                                                )
-                                              : _buildThumbnailPlaceholder(item)),
-                                    ),
+                                return GlassContainer(
+                                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                  padding: const EdgeInsets.all(8.0),
+                                  borderRadius: BorderRadius.circular(16),
+                                  opacity: isCurrentPlaying ? 0.16 : 0.07,
+                                  border: Border.all(
+                                    color: isCurrentPlaying 
+                                        ? AppStyles.primaryRed.withValues(alpha: 0.4) 
+                                        : Colors.white.withValues(alpha: 0.1),
+                                    width: 1,
                                   ),
-                                  
-                                  // Text details
-                                  Expanded(
-                                    child: GestureDetector(
-                                      behavior: HitTestBehavior.translucent,
-                                      onTap: () {
-                                        // Play item
-                                        playbackManager.setPlaylist(filteredItems, index);
-                                        // Navigate to player
-                                        Navigator.push(
-                                          context,
-                                          CupertinoPageRoute(
-                                            builder: (context) => const PlayerScreen(),
-                                          ),
-                                        );
-                                      },
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              item.title,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: AppStyles.mediaTitleStyle,
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              _formatDuration(item.duration),
-                                              style: AppStyles.mediaDurationStyle,
-                                            ),
-                                          ],
+                                  child: Row(
+                                    children: [
+                                      // Thumbnail
+                                      Container(
+                                        width: 70,
+                                        height: 70,
+                                        decoration: BoxDecoration(
+                                          color: Colors.black45,
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(10),
+                                          child: item.isVideo
+                                              ? VideoPreviewWidget(videoPath: item.path)
+                                              : (item.thumbnailPath != null
+                                                  ? Image.file(
+                                                      File(item.thumbnailPath!),
+                                                      fit: BoxFit.cover,
+                                                    )
+                                                  : _buildThumbnailPlaceholder(item)),
                                         ),
                                       ),
-                                    ),
-                                  ),
-
-                                  // Play state indicator
-                                  if (isCurrentPlaying)
-                                    Padding(
-                                      padding: const EdgeInsets.only(right: 8.0),
-                                      child: Icon(
-                                        Icons.play_arrow,
-                                        color: AppStyles.primaryRed,
-                                        size: 20,
+                                      
+                                      // Text Details
+                                      Expanded(
+                                        child: GestureDetector(
+                                          behavior: HitTestBehavior.translucent,
+                                          onTap: () {
+                                            playbackManager.setPlaylist(filteredItems, index);
+                                            Navigator.push(
+                                              context,
+                                              CupertinoPageRoute(
+                                                builder: (context) => const PlayerScreen(),
+                                              ),
+                                            );
+                                          },
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  item.title,
+                                                  maxLines: 2,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Row(
+                                                  children: [
+                                                    Icon(
+                                                      item.isVideo ? Icons.movie_outlined : Icons.audiotrack_outlined,
+                                                      size: 14,
+                                                      color: Colors.white54,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      _formatDuration(item.duration),
+                                                      style: const TextStyle(
+                                                        color: Colors.white70,
+                                                        fontSize: 12,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
 
-                                  // Info button
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.info_outline,
-                                      color: AppStyles.primaryRed,
-                                      size: 26,
-                                    ),
-                                    onPressed: () => _showMediaInfo(context, item),
+                                      // Playing dot
+                                      if (isCurrentPlaying)
+                                        Container(
+                                          width: 8,
+                                          height: 8,
+                                          margin: const EdgeInsets.only(right: 8),
+                                          decoration: const BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: AppStyles.primaryRed,
+                                          ),
+                                        ),
+
+                                      // More actions info button
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.more_vert,
+                                          color: Colors.white70,
+                                          size: 22,
+                                        ),
+                                        onPressed: () => _showVideoActionsMenu(context, item),
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
+                                );
+                              },
+                            ),
                     ),
             ),
           ],
@@ -365,12 +746,12 @@ class _VideosScreenState extends State<VideosScreen> {
     final isVideo = item.isVideo;
     final gradient = isVideo
         ? const LinearGradient(
-            colors: [Color(0xFF2C3E50), Color(0xFF3498DB)],
+            colors: [Color(0xFF1E293B), Color(0xFF334155)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           )
         : const LinearGradient(
-            colors: [Color(0xFFE53935), Color(0xFFF39C12)],
+            colors: [Color(0xFFFF5252), Color(0xFFFF7E5F)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           );
@@ -383,7 +764,7 @@ class _VideosScreenState extends State<VideosScreen> {
         child: Icon(
           isVideo ? CupertinoIcons.video_camera_solid : CupertinoIcons.music_note_2,
           color: Colors.white.withValues(alpha: 0.8),
-          size: 32,
+          size: 28,
         ),
       ),
     );

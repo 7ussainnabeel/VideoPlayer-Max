@@ -66,6 +66,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>This app requires Face ID/biometric access to unlock the application and secure your media files.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>This app requires access to save downloaded videos directly to your photo library gallery.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app requires access to the photo library to select videos and audio files for your playlist.</string>
 	<key>NSCameraUsageDescription</key>

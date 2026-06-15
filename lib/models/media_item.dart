@@ -43,6 +43,26 @@ class MediaItem {
     );
   }
 
+  MediaItem copyWith({
+    String? id,
+    String? title,
+    String? path,
+    MediaType? type,
+    Duration? duration,
+    String? thumbnailPath,
+    DateTime? addedDate,
+  }) {
+    return MediaItem(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      path: path ?? this.path,
+      type: type ?? this.type,
+      duration: duration ?? this.duration,
+      thumbnailPath: thumbnailPath ?? this.thumbnailPath,
+      addedDate: addedDate ?? this.addedDate,
+    );
+  }
+
   bool get isVideo => type == MediaType.video;
   bool get isAudio => type == MediaType.audio;
 }

@@ -7,6 +7,8 @@ import '../providers/media_library_manager.dart';
 import '../providers/playback_manager.dart';
 import 'player_screen.dart';
 import '../widgets/video_preview_widget.dart';
+import '../widgets/glass_background.dart';
+import '../widgets/glass_container.dart';
 
 class PlaylistsScreen extends StatefulWidget {
   const PlaylistsScreen({super.key});
@@ -27,9 +29,12 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("No media currently playing"),
+        SnackBar(
+          content: const Text("No media currently playing"),
           backgroundColor: AppStyles.primaryRed,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 90, left: 20, right: 20),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }
@@ -48,6 +53,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
             controller: controller,
             placeholder: "Playlist Name",
             autofocus: true,
+            style: const TextStyle(color: Colors.black),
           ),
         ),
         actions: [
@@ -75,98 +81,126 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
     final libraryManager = Provider.of<MediaLibraryManager>(context);
 
     return Scaffold(
-      backgroundColor: AppStyles.scaffoldBackground,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(50),
-        child: Container(
-          color: AppStyles.primaryRed,
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  GestureDetector(
-                    onTap: _showCreatePlaylistDialog,
-                    child: const Icon(
-                      Icons.add,
-                      color: Colors.white,
-                      size: 26,
-                    ),
+      backgroundColor: Colors.transparent,
+      body: GlassBackground(
+        child: Column(
+          children: [
+            // Custom Glass AppBar
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: GlassContainer(
+                  height: 50,
+                  borderRadius: BorderRadius.circular(25),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      GestureDetector(
+                        onTap: _showCreatePlaylistDialog,
+                        child: const Icon(
+                          Icons.add,
+                          color: Colors.white,
+                          size: 26,
+                        ),
+                      ),
+                      const Text(
+                        'Playlists',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: _navigateToPlayer,
+                        child: const Text(
+                          'Playing',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const Text(
-                    'Playlists',
-                    style: AppStyles.headerTitleStyle,
-                  ),
-                  GestureDetector(
-                    onTap: _navigateToPlayer,
-                    child: const Text(
-                      'Playing',
-                      style: AppStyles.headerActionStyle,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ),
-      ),
-      body: libraryManager.playlists.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.playlist_add, size: 64, color: AppStyles.textGray),
-                  const SizedBox(height: 12),
-                  const Text(
-                    "No playlists created yet.\nTap '+' in the top left to create one.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: AppStyles.textGray, fontSize: 16),
-                  ),
-                ],
-              ),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.only(top: 10),
-              itemCount: libraryManager.playlists.length,
-              separatorBuilder: (context, index) => const Divider(
-                height: 0.5,
-                color: AppStyles.dividerColor,
-              ),
-              itemBuilder: (context, index) {
-                final playlist = libraryManager.playlists[index];
-                return Dismissible(
-                  key: Key(playlist.id),
-                  direction: DismissDirection.endToStart,
-                  background: Container(
-                    color: Colors.red,
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 20),
-                    child: const Icon(Icons.delete, color: Colors.white),
-                  ),
-                  onDismissed: (direction) {
-                    libraryManager.deletePlaylist(playlist.id);
-                  },
-                  child: Container(
-                    color: Colors.white,
-                    child: ListTile(
-                      title: Text(playlist.name, style: AppStyles.importOptionStyle),
-                      subtitle: Text("${playlist.items.length} items", style: const TextStyle(color: AppStyles.textGray)),
-                      trailing: const Icon(CupertinoIcons.chevron_right, color: Colors.grey, size: 16),
-                      onTap: () {
-                        // Open detail screen
-                        Navigator.push(
-                          context,
-                          CupertinoPageRoute(
-                            builder: (context) => PlaylistDetailScreen(playlistId: playlist.id),
+
+            // Content List
+            Expanded(
+              child: libraryManager.playlists.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.playlist_add, size: 64, color: Colors.white60),
+                          const SizedBox(height: 12),
+                          const Text(
+                            "No playlists created yet.\nTap '+' in the top left to create one.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white70, fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.only(top: 8, bottom: 100),
+                      itemCount: libraryManager.playlists.length,
+                      itemBuilder: (context, index) {
+                        final playlist = libraryManager.playlists[index];
+                        return Dismissible(
+                          key: Key(playlist.id),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withValues(alpha: 0.8),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 20),
+                            child: const Icon(Icons.delete, color: Colors.white),
+                          ),
+                          onDismissed: (direction) {
+                            libraryManager.deletePlaylist(playlist.id);
+                          },
+                          child: GlassContainer(
+                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                            borderRadius: BorderRadius.circular(16),
+                            opacity: 0.08,
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                              leading: const Icon(Icons.playlist_play, color: AppStyles.primaryRed, size: 28),
+                              title: Text(
+                                playlist.name, 
+                                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
+                              ),
+                              subtitle: Text(
+                                "${playlist.items.length} items", 
+                                style: const TextStyle(color: Colors.white60)
+                              ),
+                              trailing: const Icon(CupertinoIcons.chevron_right, color: Colors.white54, size: 16),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  CupertinoPageRoute(
+                                    builder: (context) => PlaylistDetailScreen(playlistId: playlist.id),
+                                  ),
+                                );
+                              },
+                            ),
                           ),
                         );
                       },
                     ),
-                  ),
-                );
-              },
             ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -207,163 +241,213 @@ class PlaylistDetailScreen extends StatelessWidget {
     final playlist = libraryManager.playlists[playlistIndex];
 
     return Scaffold(
-      backgroundColor: AppStyles.scaffoldBackground,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(50),
-        child: Container(
-          color: AppStyles.primaryRed,
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Row(
-                      children: [
-                        Icon(CupertinoIcons.left_chevron, color: Colors.white, size: 20),
-                        Text('Back', style: AppStyles.headerActionStyle),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    playlist.name,
-                    style: AppStyles.headerTitleStyle,
-                  ),
-                  GestureDetector(
-                    onTap: () => _showAddItemsScreen(context, playlist),
-                    child: const Text(
-                      'Add',
-                      style: AppStyles.headerActionStyle,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-      body: playlist.items.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.playlist_add, size: 64, color: AppStyles.textGray),
-                  const SizedBox(height: 12),
-                  const Text(
-                    "This playlist is empty.\nTap 'Add' in the top right to add tracks.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: AppStyles.textGray, fontSize: 16),
-                  ),
-                ],
-              ),
-            )
-          : ReorderableListView.builder(
-              itemCount: playlist.items.length,
-              onReorder: (oldIndex, newIndex) {
-                libraryManager.reorderPlaylist(playlistId, oldIndex, newIndex);
-              },
-              itemBuilder: (context, index) {
-                final item = playlist.items[index];
-                return Dismissible(
-                  key: Key(item.id),
-                  direction: DismissDirection.endToStart,
-                  background: Container(
-                    color: Colors.red,
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 20),
-                    child: const Icon(Icons.delete_sweep, color: Colors.white),
-                  ),
-                  onDismissed: (direction) {
-                    libraryManager.removeMediaFromPlaylist(playlistId, item.id);
-                  },
-                  child: Column(
-                    key: Key('${item.id}_col'),
-                    mainAxisSize: MainAxisSize.min,
+      backgroundColor: Colors.transparent,
+      body: GlassBackground(
+        child: Column(
+          children: [
+            // Custom Glass AppBar
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: GlassContainer(
+                  height: 50,
+                  borderRadius: BorderRadius.circular(25),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        color: Colors.white,
-                        height: 80,
-                        child: Row(
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const Row(
                           children: [
-                            // Custom Thumbnail
-                            Container(
-                              width: 75,
-                              height: 75,
-                              margin: const EdgeInsets.all(2.5),
-                              decoration: BoxDecoration(
-                                color: Colors.black,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: item.isVideo
-                                    ? VideoPreviewWidget(videoPath: item.path)
-                                    : const ContainerAudioPlaceholder(),
+                            Icon(CupertinoIcons.left_chevron, color: Colors.white, size: 16),
+                            SizedBox(width: 4),
+                            Text(
+                              'Back',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                            
-                            // Details
-                            Expanded(
-                              child: GestureDetector(
-                                behavior: HitTestBehavior.translucent,
-                                onTap: () {
-                                  playbackManager.setPlaylist(playlist.items, index);
-                                  Navigator.push(
-                                    context,
-                                    CupertinoPageRoute(
-                                      builder: (context) => const PlayerScreen(),
-                                    ),
-                                  );
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        item.title,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: AppStyles.mediaTitleStyle,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        _formatDuration(item.duration),
-                                        style: AppStyles.mediaDurationStyle,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            
-                            // Playing indicator
-                            if (playbackManager.currentItem?.id == item.id)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 16.0),
-                                child: Icon(
-                                  Icons.play_arrow,
-                                  color: AppStyles.primaryRed,
-                                  size: 20,
-                                ),
-                              ),
                           ],
                         ),
                       ),
-                      if (index < playlist.items.length - 1)
-                        const Divider(
-                          height: 0.5,
-                          indent: 90,
-                          color: AppStyles.dividerColor,
+                      Text(
+                        playlist.name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
                         ),
+                      ),
+                      GestureDetector(
+                        onTap: () => _showAddItemsScreen(context, playlist),
+                        child: const Text(
+                          'Add',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                );
-              },
+                ),
+              ),
             ),
+
+            // Playlist Items Reorderable List
+            Expanded(
+              child: playlist.items.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.playlist_add, size: 64, color: Colors.white60),
+                          const SizedBox(height: 12),
+                          const Text(
+                            "This playlist is empty.\nTap 'Add' in the top right to add tracks.",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white70, fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ReorderableListView.builder(
+                      padding: const EdgeInsets.only(top: 8, bottom: 100),
+                      itemCount: playlist.items.length,
+                      onReorder: (oldIndex, newIndex) {
+                        libraryManager.reorderPlaylist(playlistId, oldIndex, newIndex);
+                      },
+                      itemBuilder: (context, index) {
+                        final item = playlist.items[index];
+                        return Dismissible(
+                          key: Key('${item.id}_dismiss'),
+                          direction: DismissDirection.endToStart,
+                          background: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withValues(alpha: 0.8),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.only(right: 20),
+                            child: const Icon(Icons.delete_sweep, color: Colors.white),
+                          ),
+                          onDismissed: (direction) {
+                            libraryManager.removeMediaFromPlaylist(playlistId, item.id);
+                          },
+                          child: GlassContainer(
+                            key: Key('${item.id}_container'),
+                            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                            padding: const EdgeInsets.all(8.0),
+                            borderRadius: BorderRadius.circular(16),
+                            opacity: 0.08,
+                            child: Row(
+                              children: [
+                                // Thumbnail
+                                Container(
+                                  width: 70,
+                                  height: 70,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black45,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: item.isVideo
+                                        ? VideoPreviewWidget(videoPath: item.path)
+                                        : const ContainerAudioPlaceholder(),
+                                  ),
+                                ),
+                                
+                                // Details
+                                Expanded(
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.translucent,
+                                    onTap: () {
+                                      playbackManager.setPlaylist(playlist.items, index);
+                                      Navigator.push(
+                                        context,
+                                        CupertinoPageRoute(
+                                          builder: (context) => const PlayerScreen(),
+                                        ),
+                                      );
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item.title,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                item.isVideo ? Icons.movie_outlined : Icons.audiotrack_outlined,
+                                                size: 14,
+                                                color: Colors.white54,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                _formatDuration(item.duration),
+                                                style: const TextStyle(
+                                                  color: Colors.white70,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                
+                                // Playing indicator
+                                if (playbackManager.currentItem?.id == item.id)
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    margin: const EdgeInsets.only(right: 12),
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: AppStyles.primaryRed,
+                                    ),
+                                  ),
+
+                                // Drag handle
+                                const Padding(
+                                  padding: EdgeInsets.only(right: 8.0),
+                                  child: Icon(
+                                    Icons.drag_handle,
+                                    color: Colors.white38,
+                                    size: 20,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -383,66 +467,104 @@ class PlaylistAddItemsScreen extends StatelessWidget {
     }).toList();
 
     return Scaffold(
-      backgroundColor: AppStyles.scaffoldBackground,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(50),
-        child: Container(
-          color: AppStyles.primaryRed,
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Text('Cancel', style: AppStyles.headerActionStyle),
+      backgroundColor: Colors.transparent,
+      body: GlassBackground(
+        child: Column(
+          children: [
+            // Custom Glass AppBar
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: GlassContainer(
+                  height: 50,
+                  borderRadius: BorderRadius.circular(25),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const Text(
+                        'Add Items',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 50),
+                    ],
                   ),
-                  const Text(
-                    'Add Items',
-                    style: AppStyles.headerTitleStyle,
-                  ),
-                  const SizedBox(width: 50), // Spacer to center
-                ],
+                ),
               ),
             ),
-          ),
+
+            // Available items list
+            Expanded(
+              child: availableItems.isEmpty
+                  ? const Center(
+                      child: Text(
+                        "All items are already in this playlist\nor no media imported yet.",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white70, fontSize: 16),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.only(top: 8, bottom: 40),
+                      itemCount: availableItems.length,
+                      itemBuilder: (context, index) {
+                        final item = availableItems[index];
+                        return GlassContainer(
+                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          borderRadius: BorderRadius.circular(16),
+                          opacity: 0.08,
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            leading: Icon(
+                              item.isVideo ? CupertinoIcons.video_camera_solid : CupertinoIcons.music_note_2,
+                              color: AppStyles.primaryRed,
+                              size: 24,
+                            ),
+                            title: Text(
+                              item.title, 
+                              maxLines: 1, 
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                            subtitle: Text(
+                              item.isVideo ? "Video" : "Audio (MP3)",
+                              style: const TextStyle(color: Colors.white60),
+                            ),
+                            trailing: const Icon(Icons.add_circle_outline, color: AppStyles.primaryRed, size: 22),
+                            onTap: () {
+                              libraryManager.addMediaToPlaylist(playlistId, item);
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text("Added: ${item.title}"),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
         ),
       ),
-      body: availableItems.isEmpty
-          ? const Center(
-              child: Text(
-                "All items are already in this playlist\nor no media imported yet.",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppStyles.textGray, fontSize: 16),
-              ),
-            )
-          : ListView.separated(
-              itemCount: availableItems.length,
-              separatorBuilder: (context, index) => const Divider(height: 0.5, color: AppStyles.dividerColor),
-              itemBuilder: (context, index) {
-                final item = availableItems[index];
-                return Container(
-                  color: Colors.white,
-                  child: ListTile(
-                    leading: Icon(
-                      item.isVideo ? CupertinoIcons.video_camera_solid : CupertinoIcons.music_note_2,
-                      color: AppStyles.primaryRed,
-                    ),
-                    title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-                    subtitle: Text(item.isVideo ? "Video" : "Audio (MP3)"),
-                    trailing: const Icon(Icons.add_circle_outline, color: AppStyles.primaryRed),
-                    onTap: () {
-                      libraryManager.addMediaToPlaylist(playlistId, item);
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Added: ${item.title}")),
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
     );
   }
 }
@@ -454,7 +576,7 @@ class ContainerVideoPlaceholder extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF2C3E50), Color(0xFF3498DB)],
+          colors: [Color(0xFF1E293B), Color(0xFF334155)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -473,7 +595,7 @@ class ContainerAudioPlaceholder extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFFE53935), Color(0xFFF39C12)],
+          colors: [Color(0xFFFF5252), Color(0xFFFF7E5F)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

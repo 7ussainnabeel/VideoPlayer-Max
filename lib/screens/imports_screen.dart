@@ -8,6 +8,8 @@ import '../models/media_item.dart';
 import '../providers/media_library_manager.dart';
 import '../providers/playback_manager.dart';
 import 'player_screen.dart';
+import '../widgets/glass_background.dart';
+import '../widgets/glass_container.dart';
 
 class ImportsScreen extends StatefulWidget {
   const ImportsScreen({super.key});
@@ -32,9 +34,12 @@ class _ImportsScreenState extends State<ImportsScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("No media currently playing"),
+        SnackBar(
+          content: const Text("No media currently playing"),
           backgroundColor: AppStyles.primaryRed,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 90, left: 20, right: 20),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }
@@ -66,7 +71,11 @@ class _ImportsScreenState extends State<ImportsScreen> {
               }
               navigator.pop();
               messenger.showSnackBar(
-                const SnackBar(content: Text("Library cleared successfully")),
+                SnackBar(
+                  content: const Text("Library cleared successfully"),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               );
             },
           ),
@@ -145,21 +154,21 @@ class _ImportsScreenState extends State<ImportsScreen> {
                 children: [
                   CupertinoTextField(
                     controller: urlController,
-                    placeholder: "https://example.com/movie.mp4",
+                    placeholder: "YouTube URL or direct media link",
                     keyboardType: TextInputType.url,
-                    style: const TextStyle(fontSize: 14),
+                    style: const TextStyle(fontSize: 14, color: Colors.black),
                   ),
                   const SizedBox(height: 8),
                   CupertinoTextField(
                     controller: nameController,
                     placeholder: "Save file as (Optional)",
-                    style: const TextStyle(fontSize: 14),
+                    style: const TextStyle(fontSize: 14, color: Colors.black),
                   ),
                   const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      const Text("Type:", style: TextStyle(fontSize: 14)),
+                      const Text("Type:", style: TextStyle(fontSize: 14, color: Colors.black87)),
                       CupertinoButton(
                         padding: EdgeInsets.zero,
                         child: Row(
@@ -265,8 +274,11 @@ class _ImportsScreenState extends State<ImportsScreen> {
   void _showImportSuccess(String name) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text("Successfully imported: $name"),
+        content: Text("Successfully imported: $name", style: const TextStyle(color: Colors.white)),
         backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(bottom: 90, left: 20, right: 20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -274,8 +286,11 @@ class _ImportsScreenState extends State<ImportsScreen> {
   void _showImportError(String error) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text("Error: $error"),
+        content: Text("Error: $error", style: const TextStyle(color: Colors.white)),
         backgroundColor: AppStyles.primaryRed,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.only(bottom: 90, left: 20, right: 20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
@@ -316,125 +331,140 @@ class _ImportsScreenState extends State<ImportsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppStyles.scaffoldBackground,
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(50),
-        child: Container(
-          color: AppStyles.primaryRed,
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  GestureDetector(
-                    onTap: _confirmClearLibrary,
-                    child: const Text(
-                      'Clear',
-                      style: AppStyles.headerActionStyle,
+      backgroundColor: Colors.transparent,
+      body: GlassBackground(
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                // Custom Glass AppBar
+                SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                    child: GlassContainer(
+                      height: 50,
+                      borderRadius: BorderRadius.circular(25),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          GestureDetector(
+                            onTap: _confirmClearLibrary,
+                            child: const Text(
+                              'Clear',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          const Text(
+                            'Imports',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: _navigateToPlayer,
+                            child: const Text(
+                              'Playing',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  const Text(
-                    'Imports',
-                    style: AppStyles.headerTitleStyle,
+                ),
+
+                // Glass Import Options List
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.only(top: 8, bottom: 100),
+                    children: [
+                      _buildImportOption(
+                        title: "Camera Roll",
+                        icon: CupertinoIcons.photo_on_rectangle,
+                        onTap: _importFromCameraRoll,
+                      ),
+                      _buildImportOption(
+                        title: "Files (Safari Downloads)",
+                        icon: CupertinoIcons.folder_open,
+                        onTap: _importFromFiles,
+                      ),
+                      _buildImportOption(
+                        title: "Dropbox",
+                        icon: CupertinoIcons.cloud,
+                        onTap: () => _showCloudIntegrationGuide("Dropbox"),
+                      ),
+                      _buildImportOption(
+                        title: "Google Drive",
+                        icon: CupertinoIcons.cloud_fill,
+                        onTap: () => _showCloudIntegrationGuide("Google Drive"),
+                      ),
+                      _buildImportOption(
+                        title: "Download from URL Link",
+                        icon: CupertinoIcons.link,
+                        onTap: _showUrlDownloadDialog,
+                      ),
+                    ],
                   ),
-                  GestureDetector(
-                    onTap: _navigateToPlayer,
-                    child: const Text(
-                      'Playing',
-                      style: AppStyles.headerActionStyle,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ),
-        ),
-      ),
-      body: Stack(
-        children: [
-          ListView(
-            padding: const EdgeInsets.only(top: 15),
-            children: [
-              // Standard iOS List Section
+            
+            // Download overlay
+            if (_isDownloading)
               Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  border: Border(
-                    top: BorderSide(color: AppStyles.dividerColor, width: 0.5),
-                    bottom: BorderSide(color: AppStyles.dividerColor, width: 0.5),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    _buildImportOption(
-                      title: "Camera Roll",
-                      icon: CupertinoIcons.photo_on_rectangle,
-                      onTap: _importFromCameraRoll,
-                    ),
-                    const Divider(height: 0.5, indent: 56, color: AppStyles.dividerColor),
-                    _buildImportOption(
-                      title: "Files (Safari Downloads)",
-                      icon: CupertinoIcons.folder_open,
-                      onTap: _importFromFiles,
-                    ),
-                    const Divider(height: 0.5, indent: 56, color: AppStyles.dividerColor),
-                    _buildImportOption(
-                      title: "DropBox",
-                      icon: CupertinoIcons.cloud,
-                      onTap: () => _showCloudIntegrationGuide("Dropbox"),
-                    ),
-                    const Divider(height: 0.5, indent: 56, color: AppStyles.dividerColor),
-                    _buildImportOption(
-                      title: "Google Drive",
-                      icon: CupertinoIcons.cloud_fill,
-                      onTap: () => _showCloudIntegrationGuide("Google Drive"),
-                    ),
-                    const Divider(height: 0.5, indent: 56, color: AppStyles.dividerColor),
-                    _buildImportOption(
-                      title: "Download from URL Link",
-                      icon: CupertinoIcons.link,
-                      onTap: _showUrlDownloadDialog,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          
-          // Download overlay
-          if (_isDownloading)
-            Container(
-              color: Colors.black54,
-              child: Center(
-                child: Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 40),
+                color: Colors.black54,
+                child: Center(
                   child: Padding(
                     padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const CircularProgressIndicator(color: AppStyles.primaryRed),
-                        const SizedBox(height: 16),
-                        const Text(
-                          "Downloading file...",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        const SizedBox(height: 8),
-                        LinearProgressIndicator(
-                          value: _downloadProgress,
-                          backgroundColor: Colors.grey.shade300,
-                          color: AppStyles.primaryRed,
-                        ),
-                        const SizedBox(height: 8),
-                        Text("${(_downloadProgress * 100).toStringAsFixed(0)}%"),
-                      ],
+                    child: GlassContainer(
+                      width: MediaQuery.of(context).size.width * 0.85,
+                      padding: const EdgeInsets.all(28.0),
+                      opacity: 0.16,
+                      borderRadius: BorderRadius.circular(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CircularProgressIndicator(color: AppStyles.primaryRed),
+                          const SizedBox(height: 20),
+                          const Text(
+                            "Downloading file...",
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
+                          ),
+                          const SizedBox(height: 12),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: _downloadProgress,
+                              minHeight: 6,
+                              backgroundColor: Colors.white12,
+                              color: AppStyles.primaryRed,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            "${(_downloadProgress * 100).toStringAsFixed(0)}%",
+                            style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -444,12 +474,20 @@ class _ImportsScreenState extends State<ImportsScreen> {
     required IconData icon,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      leading: Icon(icon, color: AppStyles.primaryRed, size: 24),
-      title: Text(title, style: AppStyles.importOptionStyle),
-      trailing: const Icon(CupertinoIcons.chevron_right, color: Colors.grey, size: 16),
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    return GlassContainer(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      borderRadius: BorderRadius.circular(16),
+      opacity: 0.08,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: Icon(icon, color: AppStyles.primaryRed, size: 24),
+        title: Text(
+          title, 
+          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
+        ),
+        trailing: const Icon(CupertinoIcons.chevron_right, color: Colors.white54, size: 16),
+        onTap: onTap,
+      ),
     );
   }
 }

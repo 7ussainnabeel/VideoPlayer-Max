@@ -15,15 +15,49 @@ class MediaLibraryManager with ChangeNotifier {
   List<MediaItem> _mediaItems = [];
   List<Playlist> _playlists = [];
   bool _isLoading = false;
+  
+  bool _isAppLocked = false;
+  String? _appLockPin;
 
   List<MediaItem> get mediaItems => _mediaItems;
   List<Playlist> get playlists => _playlists;
   bool get isLoading => _isLoading;
 
+  bool get isAppLocked => _isAppLocked;
+  String? get appLockPin => _appLockPin;
+
   final _uuid = const Uuid();
 
   MediaLibraryManager() {
     _loadLibrary();
+  }
+
+  void lockApp() {
+    if (_appLockPin != null && _appLockPin!.isNotEmpty) {
+      _isAppLocked = true;
+      notifyListeners();
+    }
+  }
+
+  void unlockApp() {
+    _isAppLocked = false;
+    notifyListeners();
+  }
+
+  Future<void> setAppLockPin(String pin) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_lock_pin', pin);
+    _appLockPin = pin;
+    _isAppLocked = false; // Unlock immediately after setup
+    notifyListeners();
+  }
+
+  Future<void> disableAppLock() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('app_lock_pin');
+    _appLockPin = null;
+    _isAppLocked = false;
+    notifyListeners();
   }
 
   // Load from SharedPreferences
@@ -43,6 +77,12 @@ class MediaLibraryManager with ChangeNotifier {
       if (playlistJson != null) {
         final List<dynamic> decoded = jsonDecode(playlistJson);
         _playlists = decoded.map((item) => Playlist.fromJson(item)).toList();
+      }
+
+      // Load app lock passcode
+      _appLockPin = prefs.getString('app_lock_pin');
+      if (_appLockPin != null && _appLockPin!.isNotEmpty) {
+        _isAppLocked = true;
       }
 
       // Automatically sync iTunes / Finder files on startup
@@ -454,6 +494,28 @@ class MediaLibraryManager with ChangeNotifier {
       updatedItems.insert(newIndex, item);
       
       _playlists[index] = playlist.copyWith(items: updatedItems);
+      await _saveLibrary();
+      notifyListeners();
+    }
+  }
+
+  // Rename Media Item
+  Future<void> renameMediaItem(String id, String newTitle) async {
+    final index = _mediaItems.indexWhere((element) => element.id == id);
+    if (index != -1) {
+      _mediaItems[index] = _mediaItems[index].copyWith(title: newTitle);
+      
+      // Also update in playlists
+      for (var i = 0; i < _playlists.length; i++) {
+        final playlist = _playlists[i];
+        final pIndex = playlist.items.indexWhere((e) => e.id == id);
+        if (pIndex != -1) {
+          final updatedItems = List<MediaItem>.from(playlist.items);
+          updatedItems[pIndex] = updatedItems[pIndex].copyWith(title: newTitle);
+          _playlists[i] = playlist.copyWith(items: updatedItems);
+        }
+      }
+      
       await _saveLibrary();
       notifyListeners();
     }

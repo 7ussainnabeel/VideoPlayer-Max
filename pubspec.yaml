@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   video_player: ^2.11.1
   just_audio: ^0.10.5
+  audio_session: ^0.2.2
   file_picker: ^11.0.2
   image_picker: ^1.2.2
   path_provider: ^2.1.5
@@ -45,6 +46,9 @@ dependencies:
   intl: ^0.20.2
   uuid: ^4.5.3
   youtube_explode_dart: ^3.1.0
+  share_plus: ^12.0.2
+  gal: ^2.3.2
+  local_auth: ^3.0.1
 
 dev_dependencies:
   flutter_test:
@@ -103,5 +107,5 @@ flutter:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/icon/app_icon.png"
+  image_path: "assets/icon/app_icon.jpg"
   remove_alpha_ios: true

@@ -6,6 +6,8 @@ import 'providers/media_library_manager.dart';
 import 'providers/playback_manager.dart';
 import 'screens/main_shell.dart';
 
+import 'screens/pin_lock_screen.dart';
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -26,8 +28,33 @@ void main() {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      // Backgrounded - trigger security lock
+      Provider.of<MediaLibraryManager>(context, listen: false).lockApp();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +77,14 @@ class MyApp extends StatelessWidget {
           trackHeight: 3.0,
         ),
       ),
-      home: const MainShell(),
+      home: Consumer<MediaLibraryManager>(
+        builder: (context, libraryManager, child) {
+          if (libraryManager.isAppLocked) {
+            return const PinLockScreen();
+          }
+          return const MainShell();
+        },
+      ),
     );
   }
 }

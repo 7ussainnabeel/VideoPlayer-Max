@@ -3,11 +3,25 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:audio_session/audio_session.dart';
 import '../models/media_item.dart';
 
 enum PlaybackRepeatMode { none, one, all }
 
 class PlaybackManager with ChangeNotifier {
+  PlaybackManager() {
+    _initAudioSession();
+  }
+
+  Future<void> _initAudioSession() async {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
+    } catch (e) {
+      debugPrint("Error initializing audio session: $e");
+    }
+  }
+
   // Playlist State
   List<MediaItem> _playlist = [];
   int _currentIndex = -1;
