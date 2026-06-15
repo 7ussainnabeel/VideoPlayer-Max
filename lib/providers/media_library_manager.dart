@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -18,6 +18,7 @@ class MediaLibraryManager with ChangeNotifier {
   
   bool _isAppLocked = false;
   String? _appLockPin;
+  ThemeMode _themeMode = ThemeMode.system;
 
   List<MediaItem> get mediaItems => _mediaItems;
   List<Playlist> get playlists => _playlists;
@@ -25,6 +26,7 @@ class MediaLibraryManager with ChangeNotifier {
 
   bool get isAppLocked => _isAppLocked;
   String? get appLockPin => _appLockPin;
+  ThemeMode get themeMode => _themeMode;
 
   final _uuid = const Uuid();
 
@@ -60,6 +62,13 @@ class MediaLibraryManager with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setThemeMode(ThemeMode mode) async {
+    _themeMode = mode;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('theme_mode', mode.name);
+    notifyListeners();
+  }
+
   // Load from SharedPreferences
   Future<void> _loadLibrary() async {
     _isLoading = true;
@@ -84,6 +93,10 @@ class MediaLibraryManager with ChangeNotifier {
       if (_appLockPin != null && _appLockPin!.isNotEmpty) {
         _isAppLocked = true;
       }
+
+      // Load theme mode
+      final themeStr = prefs.getString('theme_mode') ?? 'system';
+      _themeMode = ThemeMode.values.firstWhere((e) => e.name == themeStr, orElse: () => ThemeMode.system);
 
       // Automatically sync iTunes / Finder files on startup
       await syncItunesFiles();

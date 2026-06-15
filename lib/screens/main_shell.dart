@@ -66,7 +66,9 @@ class _MainShellState extends State<MainShell> {
   Widget _buildNavItem(int index, IconData icon, String label) {
     final isSelected = _currentIndex == index;
     final activeColor = AppStyles.primaryRed;
-    final inactiveColor = Colors.white60;
+    final inactiveColor = Theme.of(context).brightness == Brightness.light
+        ? const Color(0xFF64748B)
+        : Colors.white60;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,

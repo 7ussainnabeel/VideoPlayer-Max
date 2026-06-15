@@ -99,27 +99,27 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                     children: [
                       GestureDetector(
                         onTap: _showCreatePlaylistDialog,
-                        child: const Icon(
+                        child: Icon(
                           Icons.add,
-                          color: Colors.white,
+                          color: AppStyles.getTextColor(context),
                           size: 26,
                         ),
                       ),
-                      const Text(
+                      Text(
                         'Playlists',
                         style: TextStyle(
                           fontSize: 18,
-                          color: Colors.white,
+                          color: AppStyles.getTextColor(context),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       GestureDetector(
                         onTap: _navigateToPlayer,
-                        child: const Text(
+                        child: Text(
                           'Playing',
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.white,
+                            color: AppStyles.getTextColor(context),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -137,12 +137,12 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.playlist_add, size: 64, color: Colors.white60),
+                          Icon(Icons.playlist_add, size: 64, color: AppStyles.getSubtextColor(context)),
                           const SizedBox(height: 12),
-                          const Text(
+                          Text(
                             "No playlists created yet.\nTap '+' in the top left to create one.",
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.white70, fontSize: 16),
+                            style: TextStyle(color: AppStyles.getSubtextColor(context), fontSize: 16),
                           ),
                         ],
                       ),
@@ -177,13 +177,13 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                               leading: const Icon(Icons.playlist_play, color: AppStyles.primaryRed, size: 28),
                               title: Text(
                                 playlist.name, 
-                                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
+                                style: TextStyle(color: AppStyles.getTextColor(context), fontSize: 16, fontWeight: FontWeight.bold)
                               ),
                               subtitle: Text(
                                 "${playlist.items.length} items", 
-                                style: const TextStyle(color: Colors.white60)
+                                style: TextStyle(color: AppStyles.getSubtextColor(context))
                               ),
-                              trailing: const Icon(CupertinoIcons.chevron_right, color: Colors.white54, size: 16),
+                              trailing: Icon(CupertinoIcons.chevron_right, color: AppStyles.getChevronColor(context), size: 16),
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -259,15 +259,15 @@ class PlaylistDetailScreen extends StatelessWidget {
                     children: [
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Icon(CupertinoIcons.left_chevron, color: Colors.white, size: 16),
-                            SizedBox(width: 4),
+                            Icon(CupertinoIcons.left_chevron, color: AppStyles.getTextColor(context), size: 16),
+                            const SizedBox(width: 4),
                             Text(
                               'Back',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.white,
+                                color: AppStyles.getTextColor(context),
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -276,19 +276,19 @@ class PlaylistDetailScreen extends StatelessWidget {
                       ),
                       Text(
                         playlist.name,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
-                          color: Colors.white,
+                          color: AppStyles.getTextColor(context),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       GestureDetector(
                         onTap: () => _showAddItemsScreen(context, playlist),
-                        child: const Text(
+                        child: Text(
                           'Add',
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.white,
+                            color: AppStyles.getTextColor(context),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -306,12 +306,12 @@ class PlaylistDetailScreen extends StatelessWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.playlist_add, size: 64, color: Colors.white60),
+                          Icon(Icons.playlist_add, size: 64, color: AppStyles.getSubtextColor(context)),
                           const SizedBox(height: 12),
-                          const Text(
+                          Text(
                             "This playlist is empty.\nTap 'Add' in the top right to add tracks.",
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.white70, fontSize: 16),
+                            style: TextStyle(color: AppStyles.getSubtextColor(context), fontSize: 16),
                           ),
                         ],
                       ),
@@ -386,8 +386,8 @@ class PlaylistDetailScreen extends StatelessWidget {
                                             item.title,
                                             maxLines: 2,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(
-                                              color: Colors.white,
+                                            style: TextStyle(
+                                              color: AppStyles.getTextColor(context),
                                               fontSize: 14,
                                               fontWeight: FontWeight.w600,
                                             ),
@@ -398,13 +398,13 @@ class PlaylistDetailScreen extends StatelessWidget {
                                               Icon(
                                                 item.isVideo ? Icons.movie_outlined : Icons.audiotrack_outlined,
                                                 size: 14,
-                                                color: Colors.white54,
+                                                color: AppStyles.getSubtextColor(context),
                                               ),
                                               const SizedBox(width: 4),
                                               Text(
                                                 _formatDuration(item.duration),
-                                                style: const TextStyle(
-                                                  color: Colors.white70,
+                                                style: TextStyle(
+                                                  color: AppStyles.getSubtextColor(context),
                                                   fontSize: 12,
                                                   fontWeight: FontWeight.bold,
                                                 ),
@@ -430,11 +430,11 @@ class PlaylistDetailScreen extends StatelessWidget {
                                   ),
 
                                 // Drag handle
-                                const Padding(
-                                  padding: EdgeInsets.only(right: 8.0),
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 8.0),
                                   child: Icon(
                                     Icons.drag_handle,
-                                    color: Colors.white38,
+                                    color: AppStyles.getChevronColor(context),
                                     size: 20,
                                   ),
                                 ),
@@ -485,20 +485,20 @@ class PlaylistAddItemsScreen extends StatelessWidget {
                     children: [
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
-                        child: const Text(
+                        child: Text(
                           'Cancel',
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.white,
+                            color: AppStyles.getTextColor(context),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
-                      const Text(
+                      Text(
                         'Add Items',
                         style: TextStyle(
                           fontSize: 18,
-                          color: Colors.white,
+                          color: AppStyles.getTextColor(context),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -512,11 +512,11 @@ class PlaylistAddItemsScreen extends StatelessWidget {
             // Available items list
             Expanded(
               child: availableItems.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         "All items are already in this playlist\nor no media imported yet.",
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white70, fontSize: 16),
+                        style: TextStyle(color: AppStyles.getSubtextColor(context), fontSize: 16),
                       ),
                     )
                   : ListView.builder(
@@ -539,11 +539,11 @@ class PlaylistAddItemsScreen extends StatelessWidget {
                               item.title, 
                               maxLines: 1, 
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              style: TextStyle(color: AppStyles.getTextColor(context), fontWeight: FontWeight.bold),
                             ),
                             subtitle: Text(
                               item.isVideo ? "Video" : "Audio (MP3)",
-                              style: const TextStyle(color: Colors.white60),
+                              style: TextStyle(color: AppStyles.getSubtextColor(context)),
                             ),
                             trailing: const Icon(Icons.add_circle_outline, color: AppStyles.primaryRed, size: 22),
                             onTap: () {

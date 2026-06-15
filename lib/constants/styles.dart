@@ -20,6 +20,37 @@ class AppStyles {
   // Border Colors
   static const Color dividerColor = Colors.white10;
 
+  // Dynamic getters to support both light and dark themes with liquid glass aesthetics
+  static Color getTextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.light
+        ? const Color(0xFF0F172A) // Sleek slate-900 for high readability on light backdrop
+        : Colors.white;
+  }
+
+  static Color getSubtextColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.light
+        ? const Color(0xFF475569) // Slate-600
+        : Colors.white70;
+  }
+
+  static Color getIconColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.light
+        ? const Color(0xFF334155) // Slate-700
+        : Colors.white70;
+  }
+
+  static Color getDividerColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.light
+        ? Colors.black.withValues(alpha: 0.1)
+        : Colors.white10;
+  }
+
+  static Color getChevronColor(BuildContext context) {
+    return Theme.of(context).brightness == Brightness.light
+        ? const Color(0xFF94A3B8) // Slate-400
+        : Colors.white54;
+  }
+
   // Text Styles
   static const TextStyle headerTitleStyle = TextStyle(
     fontSize: 18,
@@ -50,3 +81,4 @@ class AppStyles {
     color: textDark,
   );
 }
+

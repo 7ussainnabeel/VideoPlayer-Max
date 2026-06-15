@@ -351,30 +351,30 @@ class _ImportsScreenState extends State<ImportsScreen> {
                         children: [
                           GestureDetector(
                             onTap: _confirmClearLibrary,
-                            child: const Text(
+                            child: Text(
                               'Clear',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.white,
+                                color: AppStyles.getTextColor(context),
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
-                          const Text(
+                          Text(
                             'Imports',
                             style: TextStyle(
                               fontSize: 18,
-                              color: Colors.white,
+                              color: AppStyles.getTextColor(context),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           GestureDetector(
                             onTap: _navigateToPlayer,
-                            child: const Text(
+                            child: Text(
                               'Playing',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Colors.white,
+                                color: AppStyles.getTextColor(context),
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -438,9 +438,9 @@ class _ImportsScreenState extends State<ImportsScreen> {
                         children: [
                           const CircularProgressIndicator(color: AppStyles.primaryRed),
                           const SizedBox(height: 20),
-                          const Text(
+                          Text(
                             "Downloading file...",
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppStyles.getTextColor(context)),
                           ),
                           const SizedBox(height: 12),
                           ClipRRect(
@@ -448,14 +448,14 @@ class _ImportsScreenState extends State<ImportsScreen> {
                             child: LinearProgressIndicator(
                               value: _downloadProgress,
                               minHeight: 6,
-                              backgroundColor: Colors.white12,
+                              backgroundColor: AppStyles.getDividerColor(context),
                               color: AppStyles.primaryRed,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Text(
                             "${(_downloadProgress * 100).toStringAsFixed(0)}%",
-                            style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: AppStyles.getSubtextColor(context), fontWeight: FontWeight.bold),
                           ),
                         ],
                       ),
@@ -483,9 +483,9 @@ class _ImportsScreenState extends State<ImportsScreen> {
         leading: Icon(icon, color: AppStyles.primaryRed, size: 24),
         title: Text(
           title, 
-          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)
+          style: TextStyle(color: AppStyles.getTextColor(context), fontSize: 16, fontWeight: FontWeight.bold)
         ),
-        trailing: const Icon(CupertinoIcons.chevron_right, color: Colors.white54, size: 16),
+        trailing: Icon(CupertinoIcons.chevron_right, color: AppStyles.getChevronColor(context), size: 16),
         onTap: onTap,
       ),
     );

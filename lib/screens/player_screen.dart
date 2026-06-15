@@ -70,9 +70,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                          Text(
                             "Playing Queue",
-                            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                            style: TextStyle(color: AppStyles.getTextColor(context), fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                           GestureDetector(
                             onTap: () => Navigator.pop(context),
@@ -84,7 +84,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         ],
                       ),
                     ),
-                    const Divider(height: 0.5, color: Colors.white10),
+                    Divider(height: 0.5, color: AppStyles.getDividerColor(context)),
                     Container(
                       constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.5),
                       child: ReorderableListView.builder(
@@ -100,20 +100,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             key: Key('${item.id}_queue'),
                             leading: Icon(
                               item.isVideo ? CupertinoIcons.video_camera : CupertinoIcons.music_note,
-                              color: isPlaying ? AppStyles.primaryRed : Colors.white60,
+                              color: isPlaying ? AppStyles.primaryRed : AppStyles.getIconColor(context),
                             ),
                             title: Text(
                               item.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: isPlaying ? AppStyles.primaryRed : Colors.white,
+                                color: isPlaying ? AppStyles.primaryRed : AppStyles.getTextColor(context),
                                 fontWeight: isPlaying ? FontWeight.bold : FontWeight.normal,
                               ),
                             ),
                             subtitle: Text(
                               _formatDuration(item.duration),
-                              style: const TextStyle(color: Colors.white38),
+                              style: TextStyle(color: AppStyles.getSubtextColor(context).withValues(alpha: 0.6)),
                             ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -188,11 +188,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     children: [
                       GestureDetector(
                         onTap: () => Navigator.pop(context),
-                        child: const Text(
+                        child: Text(
                           'Hide',
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.white,
+                            color: AppStyles.getTextColor(context),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -205,9 +205,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             textAlign: TextAlign.center,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 17,
-                              color: Colors.white,
+                              color: AppStyles.getTextColor(context),
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -215,9 +215,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       ),
                       GestureDetector(
                         onTap: () => _showPlaylistDrawer(context),
-                        child: const Icon(
+                        child: Icon(
                           Icons.playlist_play,
-                          color: Colors.white,
+                          color: AppStyles.getTextColor(context),
                           size: 26,
                         ),
                       ),
@@ -300,14 +300,20 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           children: [
                             Text(
                               _formatDuration(playbackManager.position),
-                              style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                              style: TextStyle(color: AppStyles.getSubtextColor(context), fontSize: 12, fontWeight: FontWeight.bold),
                             ),
                             Expanded(
                               child: SliderTheme(
                                 data: SliderTheme.of(context).copyWith(
-                                  activeTrackColor: Colors.white,
-                                  inactiveTrackColor: Colors.white12,
-                                  thumbColor: Colors.white,
+                                  activeTrackColor: Theme.of(context).brightness == Brightness.light
+                                      ? const Color(0xFF0F172A)
+                                      : Colors.white,
+                                  inactiveTrackColor: Theme.of(context).brightness == Brightness.light
+                                      ? const Color(0xFFE2E8F0)
+                                      : Colors.white12,
+                                  thumbColor: Theme.of(context).brightness == Brightness.light
+                                      ? const Color(0xFF0F172A)
+                                      : Colors.white,
                                   thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
                                   overlayShape: const RoundSliderOverlayShape(overlayRadius: 10.0),
                                   trackHeight: 3.0,
@@ -323,7 +329,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             ),
                             Text(
                               _formatRemainingDuration(playbackManager.position, playbackManager.duration),
-                              style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                              style: TextStyle(color: AppStyles.getSubtextColor(context), fontSize: 12, fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
@@ -342,7 +348,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                     Icons.repeat,
                                     color: playbackManager.repeatMode != PlaybackRepeatMode.none
                                         ? AppStyles.primaryRed
-                                        : Colors.white60,
+                                        : AppStyles.getIconColor(context),
                                     size: 22,
                                   ),
                                   if (playbackManager.repeatMode == PlaybackRepeatMode.one)
@@ -361,14 +367,14 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             GestureDetector(
                               onTap: () {
                                 setState(() {
-                                  _videoBoxFit = _videoBoxFit == BoxFit.contain ? BoxFit.cover : BoxFit.contain;
+                                    _videoBoxFit = _videoBoxFit == BoxFit.contain ? BoxFit.cover : BoxFit.contain;
                                 });
                               },
                               child: Icon(
                                 Icons.aspect_ratio,
                                 color: _videoBoxFit == BoxFit.cover
                                     ? AppStyles.primaryRed
-                                    : Colors.white60,
+                                    : AppStyles.getIconColor(context),
                                 size: 22,
                               ),
                             ),
@@ -380,9 +386,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                   _isPlayerLocked = true;
                                 });
                               },
-                              child: const Icon(
+                              child: Icon(
                                 Icons.lock_open,
-                                color: Colors.white60,
+                                color: AppStyles.getIconColor(context),
                                 size: 22,
                               ),
                             ),
@@ -392,7 +398,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                               onTap: playbackManager.toggleShuffle,
                               child: Icon(
                                 Icons.shuffle,
-                                color: playbackManager.isShuffle ? AppStyles.primaryRed : Colors.white60,
+                                color: playbackManager.isShuffle ? AppStyles.primaryRed : AppStyles.getIconColor(context),
                                 size: 22,
                               ),
                             ),
@@ -428,7 +434,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                 : (playbackManager.volume < 0.5
                                     ? CupertinoIcons.volume_down
                                     : CupertinoIcons.volume_up),
-                            color: Colors.white70,
+                            color: AppStyles.getIconColor(context),
                             size: 20,
                           ),
                         ),
@@ -436,8 +442,12 @@ class _PlayerScreenState extends State<PlayerScreen> {
                           child: SliderTheme(
                             data: SliderTheme.of(context).copyWith(
                               activeTrackColor: AppStyles.primaryRed,
-                              inactiveTrackColor: Colors.white12,
-                              thumbColor: Colors.white,
+                              inactiveTrackColor: Theme.of(context).brightness == Brightness.light
+                                  ? const Color(0xFFE2E8F0)
+                                  : Colors.white12,
+                              thumbColor: Theme.of(context).brightness == Brightness.light
+                                  ? const Color(0xFF0F172A)
+                                  : Colors.white,
                               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
                               overlayShape: const RoundSliderOverlayShape(overlayRadius: 10.0),
                               trackHeight: 3.0,
@@ -468,11 +478,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         IconButton(
-                          icon: const Icon(CupertinoIcons.gobackward_15, color: Colors.white70, size: 24),
+                          icon: Icon(CupertinoIcons.gobackward_15, color: AppStyles.getIconColor(context), size: 24),
                           onPressed: () => playbackManager.seekRelative(const Duration(seconds: -15)),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.skip_previous, color: Colors.white, size: 30),
+                          icon: Icon(Icons.skip_previous, color: AppStyles.getTextColor(context), size: 30),
                           onPressed: playbackManager.previous,
                         ),
                         GestureDetector(
@@ -482,22 +492,29 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             height: 54,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              color: Colors.white.withValues(alpha: 0.15),
-                              border: Border.all(color: Colors.white38, width: 1.5),
+                              color: Theme.of(context).brightness == Brightness.light
+                                  ? Colors.black.withValues(alpha: 0.08)
+                                  : Colors.white.withValues(alpha: 0.15),
+                              border: Border.all(
+                                color: Theme.of(context).brightness == Brightness.light
+                                    ? Colors.black26
+                                    : Colors.white38,
+                                width: 1.5,
+                              ),
                             ),
                             child: Icon(
                               playbackManager.isPlaying ? Icons.pause : Icons.play_arrow,
-                              color: Colors.white,
+                              color: AppStyles.getTextColor(context),
                               size: 32,
                             ),
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.skip_next, color: Colors.white, size: 30),
+                          icon: Icon(Icons.skip_next, color: AppStyles.getTextColor(context), size: 30),
                           onPressed: playbackManager.next,
                         ),
                         IconButton(
-                          icon: const Icon(CupertinoIcons.goforward_15, color: Colors.white70, size: 24),
+                          icon: Icon(CupertinoIcons.goforward_15, color: AppStyles.getIconColor(context), size: 24),
                           onPressed: () => playbackManager.seekRelative(const Duration(seconds: 15)),
                         ),
                       ],
@@ -552,22 +569,27 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     spreadRadius: 4,
                   ),
                 ],
-                border: Border.all(color: Colors.white12, width: 6),
+                border: Border.all(
+                color: Theme.of(context).brightness == Brightness.light
+                    ? Colors.black.withValues(alpha: 0.08)
+                    : Colors.white12,
+                width: 6,
               ),
-              child: Center(
-                child: Container(
-                  width: 50,
-                  height: 50,
-                  decoration: const BoxDecoration(
-                    color: Colors.black87,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Icon(CupertinoIcons.music_note, color: AppStyles.primaryRed, size: 20),
-                  ),
+            ),
+            child: Center(
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: const BoxDecoration(
+                  color: Colors.black87,
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Icon(CupertinoIcons.music_note, color: AppStyles.primaryRed, size: 20),
                 ),
               ),
             ),
+          ),
           ),
           const SizedBox(height: 32),
           
@@ -585,8 +607,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     textAlign: TextAlign.center,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: AppStyles.getTextColor(context),
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),

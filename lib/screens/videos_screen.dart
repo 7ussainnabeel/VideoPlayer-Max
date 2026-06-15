@@ -11,7 +11,7 @@ import '../models/media_item.dart';
 import '../providers/media_library_manager.dart';
 import '../providers/playback_manager.dart';
 import 'player_screen.dart';
-import 'pin_lock_screen.dart';
+import 'settings_screen.dart';
 import '../widgets/video_preview_widget.dart';
 import '../widgets/glass_background.dart';
 import '../widgets/glass_container.dart';
@@ -95,7 +95,7 @@ class _VideosScreenState extends State<VideosScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: AppStyles.getDividerColor(context),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -116,8 +116,8 @@ class _VideosScreenState extends State<VideosScreen> {
                           item.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: AppStyles.getTextColor(context),
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
@@ -126,7 +126,7 @@ class _VideosScreenState extends State<VideosScreen> {
                     ],
                   ),
                 ),
-                const Divider(height: 0.5, color: Colors.white10),
+                Divider(height: 0.5, color: AppStyles.getDividerColor(context)),
                 
                 // Actions List
                 Flexible(
@@ -135,6 +135,7 @@ class _VideosScreenState extends State<VideosScreen> {
                     physics: const ClampingScrollPhysics(),
                     children: [
                       _buildActionItem(
+                        context,
                         icon: Icons.share_outlined,
                         title: 'Share Video',
                         onTap: () {
@@ -143,6 +144,7 @@ class _VideosScreenState extends State<VideosScreen> {
                         },
                       ),
                       _buildActionItem(
+                        context,
                         icon: Icons.save_alt_outlined,
                         title: 'Save to Gallery',
                         onTap: () {
@@ -151,6 +153,7 @@ class _VideosScreenState extends State<VideosScreen> {
                         },
                       ),
                       _buildActionItem(
+                        context,
                         icon: Icons.music_note_outlined,
                         title: 'Convert to MP3',
                         onTap: () {
@@ -159,6 +162,7 @@ class _VideosScreenState extends State<VideosScreen> {
                         },
                       ),
                       _buildActionItem(
+                        context,
                         icon: Icons.launch_outlined,
                         title: 'Export / Open In',
                         onTap: () {
@@ -167,6 +171,7 @@ class _VideosScreenState extends State<VideosScreen> {
                         },
                       ),
                       _buildActionItem(
+                        context,
                         icon: Icons.edit_outlined,
                         title: 'Rename',
                         onTap: () {
@@ -175,6 +180,7 @@ class _VideosScreenState extends State<VideosScreen> {
                         },
                       ),
                       _buildActionItem(
+                        context,
                         icon: Icons.playlist_add,
                         title: 'Add to Playlist',
                         onTap: () {
@@ -183,6 +189,7 @@ class _VideosScreenState extends State<VideosScreen> {
                         },
                       ),
                       _buildActionItem(
+                        context,
                         icon: Icons.info_outline,
                         title: 'File Information',
                         onTap: () {
@@ -191,6 +198,7 @@ class _VideosScreenState extends State<VideosScreen> {
                         },
                       ),
                       _buildActionItem(
+                        context,
                         icon: Icons.delete_outline,
                         title: 'Delete',
                         textColor: Colors.redAccent,
@@ -211,18 +219,22 @@ class _VideosScreenState extends State<VideosScreen> {
     );
   }
 
-  Widget _buildActionItem({
+  Widget _buildActionItem(
+    BuildContext context, {
     required IconData icon,
     required String title,
     required VoidCallback onTap,
-    Color textColor = Colors.white,
-    Color iconColor = Colors.white70,
+    Color? textColor,
+    Color? iconColor,
   }) {
+    final finalTextColor = textColor ?? AppStyles.getTextColor(context);
+    final finalIconColor = iconColor ?? AppStyles.getIconColor(context);
+
     return ListTile(
-      leading: Icon(icon, color: iconColor, size: 22),
+      leading: Icon(icon, color: finalIconColor, size: 22),
       title: Text(
         title,
-        style: TextStyle(color: textColor, fontSize: 15, fontWeight: FontWeight.w500),
+        style: TextStyle(color: finalTextColor, fontSize: 15, fontWeight: FontWeight.w500),
       ),
       onTap: onTap,
     );
@@ -230,9 +242,35 @@ class _VideosScreenState extends State<VideosScreen> {
 
   Future<void> _shareMedia(MediaItem item) async {
     try {
+      final file = File(item.path);
+      if (!await file.exists()) {
+        _showSnackbar('File not found on disk', isError: true);
+        return;
+      }
+
+      // Get temporary directory to copy file into
+      final tempDir = await getTemporaryDirectory();
+
+      // Clean the title from invalid OS file characters
+      var cleanTitle = item.title.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_');
+
+      // Make sure the title ends with the correct extension
+      final extension = item.path.contains('.')
+          ? item.path.substring(item.path.lastIndexOf('.'))
+          : (item.type == MediaType.video ? '.mp4' : '.mp3');
+
+      if (!cleanTitle.toLowerCase().endsWith(extension.toLowerCase())) {
+        cleanTitle = '$cleanTitle$extension';
+      }
+
+      final tempFilePath = '${tempDir.path}/$cleanTitle';
+
+      // Perform the file copy
+      await file.copy(tempFilePath);
+
       await SharePlus.instance.share(
         ShareParams(
-          files: [XFile(item.path)],
+          files: [XFile(tempFilePath)],
           text: item.title,
         ),
       );
@@ -367,7 +405,7 @@ class _VideosScreenState extends State<VideosScreen> {
                     ),
                   ),
                 ),
-                const Divider(height: 0.5, color: Colors.white10),
+                Divider(height: 0.5, color: Colors.white10),
                 Flexible(
                   child: ListView.builder(
                     shrinkWrap: true,
@@ -375,8 +413,8 @@ class _VideosScreenState extends State<VideosScreen> {
                     itemBuilder: (context, index) {
                       final playlist = libraryManager.playlists[index];
                       return ListTile(
-                        leading: const Icon(Icons.playlist_add, color: Colors.white70),
-                        title: Text(playlist.name, style: const TextStyle(color: Colors.white)),
+                        leading: Icon(Icons.playlist_add, color: AppStyles.getIconColor(context)),
+                        title: Text(playlist.name, style: TextStyle(color: AppStyles.getTextColor(context))),
                         onTap: () {
                           Navigator.pop(context);
                           libraryManager.addMediaToPlaylist(playlist.id, item);
@@ -479,43 +517,37 @@ class _VideosScreenState extends State<VideosScreen> {
                     children: [
                       GestureDetector(
                         onTap: () {
-                          if (libraryManager.appLockPin == null || libraryManager.appLockPin!.isEmpty) {
-                            // Setup passcode
-                            Navigator.push(
-                              context,
-                              CupertinoPageRoute(
-                                builder: (context) => const PinLockScreen(),
-                              ),
-                            );
-                          } else {
-                            // Lock app
-                            libraryManager.lockApp();
-                          }
+                          Navigator.push(
+                            context,
+                            CupertinoPageRoute(
+                              builder: (context) => const SettingsScreen(),
+                            ),
+                          );
                         },
-                        child: const Text(
-                          'Lock',
+                        child: Text(
+                          'Settings',
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.white,
+                            color: AppStyles.getTextColor(context),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
-                      const Text(
+                      Text(
                         'Videos',
                         style: TextStyle(
                           fontSize: 18,
-                          color: Colors.white,
+                          color: AppStyles.getTextColor(context),
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       GestureDetector(
                         onTap: _navigateToPlayer,
-                        child: const Text(
+                        child: Text(
                           'Playing',
                           style: TextStyle(
                             fontSize: 16,
-                            color: Colors.white,
+                            color: AppStyles.getTextColor(context),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -540,13 +572,13 @@ class _VideosScreenState extends State<VideosScreen> {
                       _searchQuery = val;
                     });
                   },
-                  style: const TextStyle(color: Colors.white, fontSize: 15),
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(CupertinoIcons.search, color: Colors.white60, size: 18),
+                  style: TextStyle(color: AppStyles.getTextColor(context), fontSize: 15),
+                  decoration: InputDecoration(
+                    prefixIcon: Icon(CupertinoIcons.search, color: AppStyles.getIconColor(context), size: 18),
                     hintText: 'Search...',
-                    hintStyle: TextStyle(color: Colors.white38, fontSize: 15),
+                    hintStyle: TextStyle(color: AppStyles.getSubtextColor(context).withValues(alpha: 0.5), fontSize: 15),
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(vertical: 11),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 11),
                   ),
                 ),
               ),
@@ -562,12 +594,12 @@ class _VideosScreenState extends State<VideosScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Shuffle Playback',
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
-                        color: Colors.white,
+                        color: AppStyles.getTextColor(context),
                       ),
                     ),
                     GestureDetector(
@@ -577,7 +609,7 @@ class _VideosScreenState extends State<VideosScreen> {
                       },
                       child: Icon(
                         Icons.shuffle,
-                        color: playbackManager.isShuffle ? AppStyles.primaryRed : Colors.white60,
+                        color: playbackManager.isShuffle ? AppStyles.primaryRed : AppStyles.getIconColor(context),
                         size: 22,
                       ),
                     ),
@@ -607,7 +639,7 @@ class _VideosScreenState extends State<VideosScreen> {
                                           ? 'No media imported yet.\nGo to the Imports tab to add videos or audio!\n\n(Or drag down to scan iTunes files)' 
                                           : 'No matching items found',
                                       textAlign: TextAlign.center,
-                                      style: const TextStyle(color: Colors.white70, fontSize: 15),
+                                      style: TextStyle(color: AppStyles.getSubtextColor(context), fontSize: 15),
                                     ),
                                   ),
                                 ),
@@ -629,7 +661,9 @@ class _VideosScreenState extends State<VideosScreen> {
                                   border: Border.all(
                                     color: isCurrentPlaying 
                                         ? AppStyles.primaryRed.withValues(alpha: 0.4) 
-                                        : Colors.white.withValues(alpha: 0.1),
+                                        : (Theme.of(context).brightness == Brightness.light
+                                            ? Colors.black.withValues(alpha: 0.08)
+                                            : Colors.white.withValues(alpha: 0.1)),
                                     width: 1,
                                   ),
                                   child: Row(
@@ -677,8 +711,8 @@ class _VideosScreenState extends State<VideosScreen> {
                                                   item.title,
                                                   maxLines: 2,
                                                   overflow: TextOverflow.ellipsis,
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
+                                                  style: TextStyle(
+                                                    color: AppStyles.getTextColor(context),
                                                     fontSize: 14,
                                                     fontWeight: FontWeight.w600,
                                                   ),
@@ -689,13 +723,13 @@ class _VideosScreenState extends State<VideosScreen> {
                                                     Icon(
                                                       item.isVideo ? Icons.movie_outlined : Icons.audiotrack_outlined,
                                                       size: 14,
-                                                      color: Colors.white54,
+                                                      color: AppStyles.getSubtextColor(context),
                                                     ),
                                                     const SizedBox(width: 4),
                                                     Text(
                                                       _formatDuration(item.duration),
-                                                      style: const TextStyle(
-                                                        color: Colors.white70,
+                                                      style: TextStyle(
+                                                        color: AppStyles.getSubtextColor(context),
                                                         fontSize: 12,
                                                         fontWeight: FontWeight.bold,
                                                       ),
@@ -722,9 +756,9 @@ class _VideosScreenState extends State<VideosScreen> {
 
                                       // More actions info button
                                       IconButton(
-                                        icon: const Icon(
+                                        icon: Icon(
                                           Icons.more_vert,
-                                          color: Colors.white70,
+                                          color: AppStyles.getIconColor(context),
                                           size: 22,
                                         ),
                                         onPressed: () => _showVideoActionsMenu(context, item),

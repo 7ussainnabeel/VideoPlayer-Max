@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -9,8 +10,13 @@ import '../widgets/glass_container.dart';
 
 class PinLockScreen extends StatefulWidget {
   final VoidCallback? onUnlocked;
+  final bool forceSetupMode;
 
-  const PinLockScreen({super.key, this.onUnlocked});
+  const PinLockScreen({
+    super.key,
+    this.onUnlocked,
+    this.forceSetupMode = false,
+  });
 
   @override
   State<PinLockScreen> createState() => _PinLockScreenState();
@@ -28,7 +34,12 @@ class _PinLockScreenState extends State<PinLockScreen> {
   @override
   void initState() {
     super.initState();
-    _checkBiometrics();
+    _isSetupMode = widget.forceSetupMode;
+    if (_isSetupMode) {
+      _message = 'Set 4-Digit Passcode';
+    } else {
+      _checkBiometrics();
+    }
   }
 
   Future<void> _checkBiometrics() async {
@@ -71,6 +82,9 @@ class _PinLockScreenState extends State<PinLockScreen> {
     libManager.unlockApp();
     if (widget.onUnlocked != null) {
       widget.onUnlocked!();
+    }
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
     }
   }
 
@@ -142,115 +156,128 @@ class _PinLockScreenState extends State<PinLockScreen> {
       backgroundColor: Colors.transparent,
       body: GlassBackground(
         child: SafeArea(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          child: Stack(
             children: [
-              // Screen Header/Title
               Column(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  const Icon(
-                    Icons.lock_outline,
-                    color: Colors.white,
-                    size: 60,
+                  // Screen Header/Title
+                  Column(
+                    children: [
+                      const Icon(
+                        Icons.lock_outline,
+                        color: Colors.white,
+                        size: 60,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'VideoPlayer Max',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _message,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'VideoPlayer Max',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 0.5,
-                    ),
+
+                  // PIN Indicators
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(4, (index) {
+                      final filled = index < _enteredPin.length;
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 12),
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: filled ? AppStyles.primaryRed : Colors.transparent,
+                          border: Border.all(
+                            color: Colors.white60,
+                            width: 1.5,
+                          ),
+                        ),
+                      );
+                    }),
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _message,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.white70,
-                      fontWeight: FontWeight.w500,
+
+                  // Glass Keypad Layout
+                  Center(
+                    child: GlassContainer(
+                      width: MediaQuery.of(context).size.width * 0.85,
+                      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              _buildNumberButton(1),
+                              _buildNumberButton(2),
+                              _buildNumberButton(3),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              _buildNumberButton(4),
+                              _buildNumberButton(5),
+                              _buildNumberButton(6),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              _buildNumberButton(7),
+                              _buildNumberButton(8),
+                              _buildNumberButton(9),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              // Biometrics / Clear button
+                              _canCheckBiometrics && isPinSet
+                                  ? _buildIconButton(
+                                      icon: Icons.face_retouching_natural,
+                                      onPressed: _authenticateWithBiometrics,
+                                    )
+                                  : const SizedBox(width: 70, height: 70),
+                              _buildNumberButton(0),
+                              _buildIconButton(
+                                icon: Icons.backspace_outlined,
+                                onPressed: _onDeletePress,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
               ),
-
-              // PIN Indicators
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(4, (index) {
-                  final filled = index < _enteredPin.length;
-                  return Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 12),
-                    width: 18,
-                    height: 18,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: filled ? AppStyles.primaryRed : Colors.transparent,
-                      border: Border.all(
-                        color: Colors.white60,
-                        width: 1.5,
-                      ),
-                    ),
-                  );
-                }),
-              ),
-
-              // Glass Keypad Layout
-              Center(
-                child: GlassContainer(
-                  width: MediaQuery.of(context).size.width * 0.85,
-                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildNumberButton(1),
-                          _buildNumberButton(2),
-                          _buildNumberButton(3),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildNumberButton(4),
-                          _buildNumberButton(5),
-                          _buildNumberButton(6),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildNumberButton(7),
-                          _buildNumberButton(8),
-                          _buildNumberButton(9),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          // Biometrics / Clear button
-                          _canCheckBiometrics && isPinSet
-                              ? _buildIconButton(
-                                  icon: Icons.face_retouching_natural,
-                                  onPressed: _authenticateWithBiometrics,
-                                )
-                              : const SizedBox(width: 70, height: 70),
-                          _buildNumberButton(0),
-                          _buildIconButton(
-                            icon: Icons.backspace_outlined,
-                            onPressed: _onDeletePress,
-                          ),
-                        ],
-                      ),
-                    ],
+              if (Navigator.of(context).canPop())
+                Positioned(
+                  top: 0,
+                  left: 8,
+                  child: IconButton(
+                    icon: const Icon(CupertinoIcons.back, color: Colors.white, size: 28),
+                    onPressed: () => Navigator.pop(context),
                   ),
                 ),
-              ),
             ],
           ),
         ),
