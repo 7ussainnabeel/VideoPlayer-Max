@@ -255,15 +255,22 @@ class _ImportsScreenState extends State<ImportsScreen> {
       type: type,
       cancelToken: _cancelToken,
       onProgress: (progress) {
-        setState(() {
-          _downloadProgress = progress;
-        });
+        if (_isDownloading) {
+          setState(() {
+            _downloadProgress = progress;
+          });
+        }
       },
     );
 
     final isCancelled = _cancelToken?.isCancelled ?? false;
 
     if (!mounted) return;
+
+    if (!_isDownloading && isCancelled) {
+      _cancelToken = null;
+      return;
+    }
 
     setState(() {
       _isDownloading = false;
@@ -584,6 +591,10 @@ class _ImportsScreenState extends State<ImportsScreen> {
                               ),
                               onPressed: () {
                                 _cancelToken?.cancel();
+                                setState(() {
+                                  _isDownloading = false;
+                                });
+                                _showImportError("Download cancelled");
                               },
                             ),
                           ),

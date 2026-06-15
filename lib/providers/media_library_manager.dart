@@ -461,7 +461,7 @@ class MediaLibraryManager with ChangeNotifier {
         String? resolvedFileName;
 
         if (_isGoogleDriveUrl(url)) {
-          final resolved = await _resolveGoogleDriveUrl(url);
+          final resolved = await _resolveGoogleDriveUrl(url, cancelToken: cancelToken);
           if (resolved != null) {
             downloadUrl = resolved.url;
             resolvedFileName = resolved.filename;
@@ -471,7 +471,7 @@ class MediaLibraryManager with ChangeNotifier {
           downloadUrl = resolved.url;
           resolvedFileName = resolved.filename;
         } else if (_isTwitterOrInstagramUrl(url)) {
-          final resolved = await _resolveCobaltUrl(url, type);
+          final resolved = await _resolveCobaltUrl(url, type, cancelToken: cancelToken);
           if (resolved != null) {
             downloadUrl = resolved.url;
             resolvedFileName = resolved.filename;
@@ -750,7 +750,7 @@ class MediaLibraryManager with ChangeNotifier {
     return null;
   }
 
-  Future<_ResolvedMedia?> _resolveGoogleDriveUrl(String url) async {
+  Future<_ResolvedMedia?> _resolveGoogleDriveUrl(String url, {CancelToken? cancelToken}) async {
     final fileId = _extractGoogleDriveId(url);
     if (fileId == null) return null;
     
@@ -762,6 +762,7 @@ class MediaLibraryManager with ChangeNotifier {
       final dio = Dio();
       final response = await dio.get(
         baseUrl,
+        cancelToken: cancelToken,
         options: Options(
           responseType: ResponseType.plain,
           validateStatus: (status) => true,
@@ -845,7 +846,7 @@ class MediaLibraryManager with ChangeNotifier {
     }
   }
 
-  Future<_ResolvedMedia?> _resolveCobaltUrl(String url, MediaType type) async {
+  Future<_ResolvedMedia?> _resolveCobaltUrl(String url, MediaType type, {CancelToken? cancelToken}) async {
     try {
       final dio = Dio();
       final response = await dio.post(
@@ -856,6 +857,7 @@ class MediaLibraryManager with ChangeNotifier {
           'aFormat': 'mp3',
           'vQuality': '720',
         },
+        cancelToken: cancelToken,
         options: Options(
           headers: {
             'Accept': 'application/json',
