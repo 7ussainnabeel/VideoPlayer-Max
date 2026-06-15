@@ -295,35 +295,137 @@ class _ImportsScreenState extends State<ImportsScreen> {
     );
   }
 
-  // Display Cloud integration details
-  void _showCloudIntegrationGuide(String provider) {
+  // Display Cloud Direct Downloader & File Browser Choice
+  void _showCloudDownloadDialog(String provider) {
+    final urlController = TextEditingController();
+    final nameController = TextEditingController();
+    MediaType selectedType = MediaType.video;
+
     showCupertinoDialog(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text("$provider Integration"),
-        content: Padding(
-          padding: const EdgeInsets.only(top: 8.0),
-          child: Text(
-            "iOS integrates $provider files directly into the native Files app. \n\n"
-            "To import from $provider:\n"
-            "1. Open the Files option.\n"
-            "2. Access your $provider folders in the sidebar browse panel.\n"
-            "3. Select the file you want to download and open in this app.",
-          ),
-        ),
-        actions: [
-          CupertinoDialogAction(
-            child: const Text("Open Files"),
-            onPressed: () {
-              Navigator.pop(context);
-              _importFromFiles();
-            },
-          ),
-          CupertinoDialogAction(
-            child: const Text("Close"),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return CupertinoAlertDialog(
+            title: Text("Download from $provider"),
+            content: Padding(
+              padding: const EdgeInsets.only(top: 10.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    "Paste a shared link from $provider to download the video/audio directly:",
+                    style: const TextStyle(fontSize: 13, color: Colors.black87),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  CupertinoTextField(
+                    controller: urlController,
+                    placeholder: "$provider Share Link",
+                    keyboardType: TextInputType.url,
+                    style: const TextStyle(fontSize: 14, color: Colors.black),
+                  ),
+                  const SizedBox(height: 8),
+                  CupertinoTextField(
+                    controller: nameController,
+                    placeholder: "Save file as (Optional)",
+                    style: const TextStyle(fontSize: 14, color: Colors.black),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      const Text("Type:", style: TextStyle(fontSize: 14, color: Colors.black87)),
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        child: Row(
+                          children: [
+                            Icon(
+                              selectedType == MediaType.video 
+                                  ? CupertinoIcons.check_mark_circled_solid 
+                                  : CupertinoIcons.circle,
+                              size: 18,
+                            ),
+                            const Text(" Video", style: TextStyle(fontSize: 14)),
+                          ],
+                        ),
+                        onPressed: () {
+                          setDialogState(() {
+                            selectedType = MediaType.video;
+                          });
+                        },
+                      ),
+                      CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        child: Row(
+                          children: [
+                            Icon(
+                              selectedType == MediaType.audio 
+                                  ? CupertinoIcons.check_mark_circled_solid 
+                                  : CupertinoIcons.circle,
+                              size: 18,
+                            ),
+                            const Text(" Audio", style: TextStyle(fontSize: 14)),
+                          ],
+                        ),
+                        onPressed: () {
+                          setDialogState(() {
+                            selectedType = MediaType.audio;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const Divider(color: Colors.black12),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Alternatively, browse your $provider directories directly via the iOS Files system:",
+                    style: const TextStyle(fontSize: 12, color: Colors.black54),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: CupertinoButton(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      color: AppStyles.primaryRed,
+                      borderRadius: BorderRadius.circular(8),
+                      child: const Text(
+                        "Browse Files App",
+                        style: TextStyle(fontSize: 14, color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        _importFromFiles();
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text("Cancel"),
+                onPressed: () => Navigator.pop(context),
+              ),
+              CupertinoDialogAction(
+                child: const Text("Download"),
+                onPressed: () {
+                  final url = urlController.text.trim();
+                  final filename = nameController.text.trim();
+                  if (url.isEmpty) return;
+
+                  Navigator.pop(context);
+                  _startDownload(
+                    url,
+                    filename.isEmpty ? null : filename,
+                    selectedType,
+                  );
+                },
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -403,12 +505,12 @@ class _ImportsScreenState extends State<ImportsScreen> {
                       _buildImportOption(
                         title: "Dropbox",
                         icon: CupertinoIcons.cloud,
-                        onTap: () => _showCloudIntegrationGuide("Dropbox"),
+                        onTap: () => _showCloudDownloadDialog("Dropbox"),
                       ),
                       _buildImportOption(
                         title: "Google Drive",
                         icon: CupertinoIcons.cloud_fill,
-                        onTap: () => _showCloudIntegrationGuide("Google Drive"),
+                        onTap: () => _showCloudDownloadDialog("Google Drive"),
                       ),
                       _buildImportOption(
                         title: "Download from URL Link",

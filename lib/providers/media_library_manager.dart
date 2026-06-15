@@ -431,7 +431,17 @@ class MediaLibraryManager with ChangeNotifier {
         String downloadUrl = url;
         String? resolvedFileName;
 
-        if (_isTwitterOrInstagramUrl(url)) {
+        if (_isGoogleDriveUrl(url)) {
+          final resolved = await _resolveGoogleDriveUrl(url);
+          if (resolved != null) {
+            downloadUrl = resolved.url;
+            resolvedFileName = resolved.filename;
+          }
+        } else if (_isDropboxUrl(url)) {
+          final resolved = _resolveDropboxUrl(url);
+          downloadUrl = resolved.url;
+          resolvedFileName = resolved.filename;
+        } else if (_isTwitterOrInstagramUrl(url)) {
           final resolved = await _resolveCobaltUrl(url, type);
           if (resolved != null) {
             downloadUrl = resolved.url;
@@ -439,27 +449,11 @@ class MediaLibraryManager with ChangeNotifier {
           }
         }
 
-        final extension = type == MediaType.video ? '.mp4' : '.mp3';
-        
-        // Ensure file name has extension
-        String finalFileName = fileName ?? resolvedFileName ?? '';
-        if (finalFileName.isEmpty) {
-          finalFileName = downloadUrl.split('/').last;
-          if (finalFileName.contains('?')) {
-            finalFileName = finalFileName.split('?').first;
-          }
-        }
-        if (finalFileName.isEmpty) {
-          finalFileName = 'downloaded_file';
-        }
-        if (!finalFileName.endsWith(extension)) {
-          finalFileName = '$finalFileName$extension';
-        }
-
-        final tempPath = '${appDir.path}/temp_${_uuid.v4()}$extension';
+        final defaultExtension = type == MediaType.video ? '.mp4' : '.mp3';
+        final tempPath = '${appDir.path}/temp_${_uuid.v4()}$defaultExtension';
         
         final dio = Dio();
-        await dio.download(
+        final response = await dio.download(
           downloadUrl,
           tempPath,
           onReceiveProgress: (received, total) {
@@ -469,15 +463,73 @@ class MediaLibraryManager with ChangeNotifier {
           },
         );
 
+        // Try to resolve original filename from response headers (Content-Disposition) if not already provided
+        String? headerFileName;
+        final contentDisposition = response.headers.value('content-disposition');
+        if (contentDisposition != null) {
+          final match = RegExp(r'filename="?([^";]+)"?').firstMatch(contentDisposition);
+          if (match != null && match.groupCount >= 1) {
+            headerFileName = Uri.decodeComponent(match.group(1)!);
+          }
+        }
+
+        String finalFileName = fileName ?? resolvedFileName ?? headerFileName ?? '';
+        if (finalFileName.isEmpty) {
+          finalFileName = downloadUrl.split('/').last;
+          if (finalFileName.contains('?')) {
+            finalFileName = finalFileName.split('?').first;
+          }
+        }
+        if (finalFileName.isEmpty) {
+          finalFileName = 'downloaded_file';
+        }
+
+        // Deduce appropriate extension (either from the filename, or from content-type header, or default)
+        String ext = '';
+        if (finalFileName.contains('.')) {
+          ext = finalFileName.substring(finalFileName.lastIndexOf('.'));
+        }
+        if (ext.isEmpty) {
+          final contentType = response.headers.value('content-type');
+          if (contentType != null) {
+            if (contentType.contains('video/quicktime')) {
+              ext = '.mov';
+            } else if (contentType.contains('video/mp4')) {
+              ext = '.mp4';
+            } else if (contentType.contains('audio/mpeg')) {
+              ext = '.mp3';
+            } else if (contentType.contains('audio/x-m4a') || contentType.contains('audio/m4a')) {
+              ext = '.m4a';
+            } else if (contentType.contains('audio/wav') || contentType.contains('audio/x-wav')) {
+              ext = '.wav';
+            }
+          }
+        }
+        if (ext.isEmpty) {
+          ext = defaultExtension;
+        }
+
+        if (!finalFileName.toLowerCase().endsWith(ext.toLowerCase())) {
+          finalFileName = '$finalFileName$ext';
+        }
+
+        // Standard logic requires using correct extension for adding media item
+        String savePath = tempPath;
+        if (ext != defaultExtension) {
+          final correctTempPath = '${appDir.path}/temp_${_uuid.v4()}$ext';
+          await File(tempPath).rename(correctTempPath);
+          savePath = correctTempPath;
+        }
+
         // Now add using our standard path copy and duration extraction
         final newItem = await addMediaItem(
-          sourcePath: tempPath,
+          sourcePath: savePath,
           originalName: finalFileName,
           type: type,
         );
 
         // Delete the temp downloaded file
-        final tempFile = File(tempPath);
+        final tempFile = File(savePath);
         if (await tempFile.exists()) {
           await tempFile.delete();
         }
@@ -607,6 +659,103 @@ class MediaLibraryManager with ChangeNotifier {
       await _saveLibrary();
       notifyListeners();
     }
+  }
+
+  bool _isGoogleDriveUrl(String url) {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null) return false;
+    final host = uri.host.toLowerCase();
+    return host.contains('drive.google.com') || host.contains('docs.google.com');
+  }
+
+  bool _isDropboxUrl(String url) {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null) return false;
+    final host = uri.host.toLowerCase();
+    return host.contains('dropbox.com');
+  }
+
+  String? _extractGoogleDriveId(String url) {
+    final regExp1 = RegExp(r'/d/([a-zA-Z0-9-_]+)');
+    final match1 = regExp1.firstMatch(url);
+    if (match1 != null && match1.groupCount >= 1) {
+      return match1.group(1);
+    }
+    
+    final regExp2 = RegExp(r'[?&]id=([a-zA-Z0-9-_]+)');
+    final match2 = regExp2.firstMatch(url);
+    if (match2 != null && match2.groupCount >= 1) {
+      return match2.group(1);
+    }
+    return null;
+  }
+
+  Future<_ResolvedMedia?> _resolveGoogleDriveUrl(String url) async {
+    final fileId = _extractGoogleDriveId(url);
+    if (fileId == null) return null;
+    
+    final baseUrl = 'https://docs.google.com/uc?export=download&id=$fileId';
+    String downloadUrl = baseUrl;
+    String? filename;
+    
+    try {
+      final dio = Dio();
+      final response = await dio.get(
+        baseUrl,
+        options: Options(
+          responseType: ResponseType.plain,
+          validateStatus: (status) => true,
+        ),
+      );
+      
+      if (response.statusCode == 200) {
+        final body = response.data.toString();
+        
+        final confirmRegExp = RegExp(r'confirm=([^&"]+)');
+        final match = confirmRegExp.firstMatch(body);
+        if (match != null && match.groupCount >= 1) {
+          final token = match.group(1);
+          downloadUrl = '$baseUrl&confirm=$token';
+        } else {
+          final confirmInputRegExp = RegExp(r'name="confirm"\s+value="([a-zA-Z0-9-_]+)"');
+          final inputMatch = confirmInputRegExp.firstMatch(body);
+          if (inputMatch != null && inputMatch.groupCount >= 1) {
+            final token = inputMatch.group(1);
+            downloadUrl = '$baseUrl&confirm=$token';
+          }
+        }
+        
+        final titleRegExp = RegExp(r'<span class="uc-name-size"><a href="[^"]+"><b>([^<]+)</b></a>');
+        final titleMatch = titleRegExp.firstMatch(body);
+        if (titleMatch != null && titleMatch.groupCount >= 1) {
+          filename = titleMatch.group(1);
+        }
+      }
+    } catch (e) {
+      debugPrint("Error resolving Google Drive: $e");
+    }
+    
+    return _ResolvedMedia(downloadUrl, filename);
+  }
+
+  _ResolvedMedia _resolveDropboxUrl(String url) {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null) return _ResolvedMedia(url, null);
+    
+    final queryParams = Map<String, String>.from(uri.queryParameters);
+    queryParams['dl'] = '1';
+    final downloadUrl = uri.replace(queryParameters: queryParams).toString();
+    
+    String? filename;
+    final pathSegments = uri.pathSegments;
+    if (pathSegments.isNotEmpty) {
+      final last = pathSegments.last;
+      if (last.contains('.')) {
+        filename = Uri.decodeComponent(last);
+      }
+    }
+    
+    return _ResolvedMedia(downloadUrl, filename);
   }
 
   bool _isTwitterOrInstagramUrl(String url) {
