@@ -33,6 +33,14 @@ if ! command -v flutter >/dev/null 2>&1; then
   done
 fi
 
+# Add Android SDK platform-tools to PATH if not present
+if ! command -v adb >/dev/null 2>&1; then
+  ANDROID_SDK_PLATFORM_TOOLS="$HOME/Library/Android/sdk/platform-tools"
+  if [[ -d "$ANDROID_SDK_PLATFORM_TOOLS" ]]; then
+    export PATH="$PATH:$ANDROID_SDK_PLATFORM_TOOLS"
+  fi
+fi
+
 if ! command -v flutter >/dev/null 2>&1; then
   echo "Error: flutter is not installed or not in PATH."
   exit 1
