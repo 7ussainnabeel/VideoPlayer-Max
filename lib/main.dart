@@ -10,11 +10,15 @@ import 'screens/pin_lock_screen.dart';
 
 import 'package:audio_service/audio_service.dart';
 import 'providers/audio_handler.dart';
+import 'providers/carplay_manager.dart';
 
 late AudioHandler audioHandler;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize CarPlay MethodChannel
+  CarPlayManager.init();
   
   // Initialize AudioService for lock screen and background controls
   audioHandler = await AudioService.init(

@@ -11,7 +11,11 @@ import 'audio_handler.dart';
 enum PlaybackRepeatMode { none, one, all }
 
 class PlaybackManager with ChangeNotifier {
+  static PlaybackManager? _instance;
+  static PlaybackManager? get instance => _instance;
+
   PlaybackManager() {
+    _instance = this;
     _initAudioSession();
     if (VideoPlayerMaxAudioHandler.instance != null) {
       VideoPlayerMaxAudioHandler.instance!.playbackManager = this;

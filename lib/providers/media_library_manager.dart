@@ -11,6 +11,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart' as yt_explode;
 import '../models/media_item.dart';
 import '../models/playlist.dart';
+import 'carplay_manager.dart';
 
 class MediaLibraryManager with ChangeNotifier {
   List<MediaItem> _mediaItems = [];
@@ -29,9 +30,13 @@ class MediaLibraryManager with ChangeNotifier {
   String? get appLockPin => _appLockPin;
   ThemeMode get themeMode => _themeMode;
 
+  static MediaLibraryManager? _instance;
+  static MediaLibraryManager? get instance => _instance;
+
   final _uuid = const Uuid();
 
   MediaLibraryManager() {
+    _instance = this;
     _loadLibrary();
   }
 
@@ -179,6 +184,7 @@ class MediaLibraryManager with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('media_library', jsonEncode(_mediaItems.map((e) => e.toJson()).toList()));
       await prefs.setString('playlists', jsonEncode(_playlists.map((e) => e.toJson()).toList()));
+      CarPlayManager.reloadCarPlay();
     } catch (e) {
       debugPrint("Error saving library: $e");
     }

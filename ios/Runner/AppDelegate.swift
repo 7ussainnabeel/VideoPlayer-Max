@@ -4,10 +4,13 @@ import AVFoundation
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+  static var shared: AppDelegate?
+
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
+    AppDelegate.shared = self
     let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
     
     if let controller = window?.rootViewController as? FlutterViewController {
